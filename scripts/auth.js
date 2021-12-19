@@ -40,9 +40,14 @@ signupForm.addEventListener('submit', (e) => {
 
   // sign up the user & add firestore data
   auth.createUserWithEmailAndPassword(email, password).then(cred => {
-    return db.collection('users').doc(cred.user.uid).set({
-      bio: signupForm['signup-bio'].value
-    });
+    return true;
+    // return db.ref('newusers').set({
+    //   uui: cred.user.uid,
+    //   email: cred.user.email,
+    //   reason: signupForm['signup-reason'].value
+    // });
+  }).catch( e => {
+    alert(e);
   }).then(() => {
     // close the signup modal & reset form
     const modal = document.querySelector('#modal-signup');

@@ -5,6 +5,7 @@
   <meta http-equiv="X-UA-Compatible" content="ie=edge">
   <!-- Compiled and minified CSS -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
   <title>ESP8266 Termo</title>
 </head>
 <body class="grey lighten-3"">
@@ -15,26 +16,32 @@
       <a href="#" class="brand-logo">
         <img src="img/logo.png" style="height: 54px; margin-top: 5px;">
       </a>
+      <a href="#" data-target="mobile-menu" class="sidenav-trigger"><i class="material-icons black-text">menu</i></a>
       <ul id="nav-mobile" class="right hide-on-med-and-down">
-          <li class="logged-in" style="display: none;">
-            <a href="#" class="grey-text modal-trigger" data-target="modal-account">Account</a>
-          </li>
-          <li class="logged-in" style="display: none;">
-            <a href="#" class="grey-text" id="logout">Logout</a>
-          </li>
-          <li class="logged-in" style="display: none;">
-            <a href="#" class="grey-text modal-trigger" data-target="modal-create">Create Guide</a>
-          </li>
-          <li class="logged-out" style="display: none;">
-            <a href="#" class="grey-text modal-trigger" data-target="modal-login">Login</a>
-          </li>
-          <li class="logged-out" style="display: none;">
-            <a href="#" class="grey-text modal-trigger" data-target="modal-signup">Sign up</a>
-          </li>
-        </span>
+        <li class="logged-in" style="display: none;">
+          <a href="#" class="grey-text modal-trigger" data-target="modal-create">Create Sensor</a>
+        </li>
+        <li class="logged-out" style="display: none;">
+          <a href="#" class="grey-text modal-trigger" data-target="modal-signup">Sign up</a>
+        </li>
+        <li class="logged-out" style="display: none;">
+          <a href="#" class="grey-text modal-trigger" data-target="modal-login">Login</a>
+        </li>
+        <li class="logged-in" style="display: none;">
+          <a href="#" class="grey-text modal-trigger" data-target="modal-account">Account</a>
+        </li>
+        <li class="logged-in" style="display: none;">
+          <a href="#" class="grey-text" id="logout">Logout</a>
+        </li>
       </ul>
     </div>
   </nav>
+  <ul class="sidenav" id="mobile-menu">
+    <li><a href="sass.html">Sass</a></li>
+    <li><a href="badges.html">Components</a></li>
+    <li><a href="collapsible.html">Javascript</a></li>
+    <li><a href="mobile.html">Mobile</a></li>
+  </ul>
 
   <!-- SIGN UP MODAL -->
   <div id="modal-signup" class="modal">
@@ -50,8 +57,8 @@
           <label for="signup-password">Choose password</label>
         </div>
         <div class="input-field">
-          <input type="text" id="signup-bio" required />
-          <label for="signup-bio">One Line Bio</label>
+          <input type="text" id="signup-reason" required />
+          <label for="signup-reason">Reason why to add access</label>
         </div>
         <button class="btn yellow darken-2 z-depth-0">Sign up</button>
       </form>
