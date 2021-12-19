@@ -37,11 +37,22 @@
     </div>
   </nav>
   <ul class="sidenav" id="mobile-menu">
-    <li><a href="sass.html">Sass</a></li>
-    <li><a href="badges.html">Components</a></li>
-    <li><a href="collapsible.html">Javascript</a></li>
-    <li><a href="mobile.html">Mobile</a></li>
-  </ul>
+    <li class="logged-in" style="display: none;">
+      <a href="#" class="grey-text modal-trigger" data-target="modal-create">Create Sensor</a>
+    </li>
+    <li class="logged-out" style="display: none;">
+      <a href="#" class="grey-text modal-trigger" data-target="modal-signup">Sign up</a>
+    </li>
+    <li class="logged-out" style="display: none;">
+      <a href="#" class="grey-text modal-trigger" data-target="modal-login">Login</a>
+    </li>
+    <li class="logged-in" style="display: none;">
+      <a href="#" class="grey-text modal-trigger" data-target="modal-account">Account</a>
+    </li>
+    <li class="logged-in" style="display: none;">
+      <a href="#" class="grey-text" id="logout">Logout</a>
+    </li>
+</ul>
 
   <!-- SIGN UP MODAL -->
   <div id="modal-signup" class="modal">
