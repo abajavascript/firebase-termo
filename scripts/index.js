@@ -23,7 +23,8 @@ const setupUI = (user) => {
   }
 };
 
-// setup guides
+// setup sensors
+const sensorsData = [];
 const setupSensors = (data) => {
 
   if (Object.keys(data).length) {
@@ -55,75 +56,83 @@ const setupSensors = (data) => {
               <a class="waves-effect waves-light btn-small">Period</a>
             </div>
             <div>
-              <canvas class="single-sensor-chart" id="id-${sensorId}"></canvas>
+              <canvas class="single-sensor-chart" id="canvas-${sensorId}"></canvas>
             </div>
           </div>
       `;
       sensorList.appendChild(li);
+      let sensorData = {
+        li : li,
+        sensorId : sensorId,
+        fbSensorValueListener : 'sensors/' + sensorId + '/last'
+      };
+      sensorsData.push(sensorData);
+      //reocurent new values of sensors received
       db.ref('sensors/' + sensorId + '/last').on('value', snapshot => {
         console.log('Received update for sensor ' + sensorId, snapshot.val());
         const tempValueElement = document.querySelector(`.sensor-${sensorId} .temp-value`);
         tempValueElement.innerHTML = snapshot.val().t;
         const timeValueElement = document.querySelector(`.sensor-${sensorId} .time-value`);
         timeValueElement.innerHTML = snapshot.val().time;
+        //add new values to the existing chart
       });
-      db.ref(`temperatures/${sensorId}/2021/12/20`).once('value', snapshot => {
+
+      //chart for today
+      function getNowYYYYMMDD(){
+        const d = new Date();
+        return d.getFullYear() + '/' + ('0' + (d.getMonth()+1)).slice(-2) + '/' + ('0' + (d.getDate())).slice(-2);
+      }
+      db.ref(`temperatures/${sensorId}/`+getNowYYYYMMDD()).once('value', snapshot => {
         console.log(`Received temperatures of #${sensorId} sensor`, snapshot.val());
-
-        const data = flatten(snapshot.val());
-        function flatten(obj) {
-          var result = [];
-          traverseAndFlatten(obj, result);
-          return result;
-
-          function traverseAndFlatten(currentNode, target, flattenedKey) {
-            Object.keys(currentNode).sort().forEach(key => {
-              //for (var key in currentNode) {
-              if (currentNode.hasOwnProperty(key)) {
-                var newKey;
-                if (flattenedKey === undefined) {
-                  newKey = key;
-                } else {
-                  newKey = flattenedKey + ':' + key;
-                }
-
-                var value = currentNode[key];
-                if (typeof value === "object" && (!value.t)) {
-                  traverseAndFlatten(value, target, newKey);
-                } else {
-                  target.push({ x: newKey, y: value.t });
-                }
-              }
-            });
-          }
-        }
-        console.log(`Received temperatures of #${sensorId} sensor`, data);
-
-        setupSingleSensorChart("id-" + sensorId, data);
+        setupTemperaturesChart(sensorData, snapshot.val());
       }, err => console.log(err.message));
 
     });
   } else {
-    sensorList.innerHTML = '<h5 class="center-align">Login to view guides</h5>';
+    //detach all firebase listeners
+    sensorsData.forEach(e => {
+      db.ref(e.fbSensorValueListener).off();
+    })
+    sensorsData.length = 0;
+    sensorList.innerHTML = '<h5 class="center-align">Login to view sensors</h5>';
   }
 
 
 };
 
-// setup materialize components
-document.addEventListener('DOMContentLoaded', function () {
+function setupTemperaturesChart(sensorData, snapshot) {
+  let canvasId = "canvas-" + sensorData.sensorId;
 
-  var modals = document.querySelectorAll('.modal');
-  M.Modal.init(modals);
+  //tranform firebase data to Chart.js format
+  const temperatures = flatten(snapshot);
+  function flatten(obj) {
+    var result = [];
+    traverseAndFlatten(obj, result);
+    return result;
 
-  var items = document.querySelectorAll('.collapsible');
-  M.Collapsible.init(items);
+    function traverseAndFlatten(currentNode, target, flattenedKey) {
+      Object.keys(currentNode).sort().forEach(key => {
+        //for (var key in currentNode) {
+        if (currentNode.hasOwnProperty(key)) {
+          var newKey;
+          if (flattenedKey === undefined) {
+            newKey = key;
+          } else {
+            newKey = flattenedKey + ':' + key;
+          }
 
-  var menuElems = document.querySelectorAll('.sidenav');
-  var instances = M.Sidenav.init(menuElems);
-});
+          var value = currentNode[key];
+          if (typeof value === "object" && (!value.t)) {
+            traverseAndFlatten(value, target, newKey);
+          } else {
+            target.push({ x: newKey, y: value.t });
+          }
+        }
+      });
+    }
+  }
+  console.log(`Received temperatures of #${sensorData.sensorId} sensor`, temperatures);
 
-function setupSingleSensorChart(canvasId, temperatures) {
   const config = {
     type: 'line',
     data: {
@@ -150,8 +159,24 @@ function setupSingleSensorChart(canvasId, temperatures) {
     },
     options: {}
   };
-  const myChart = new Chart(
+  const temperaturesChart = new Chart(
     document.getElementById(canvasId),
     config
   );
+  
+  sensorData.temperaturesChart = temperaturesChart;
 }
+
+// setup materialize components
+document.addEventListener('DOMContentLoaded', function () {
+
+  var modals = document.querySelectorAll('.modal');
+  M.Modal.init(modals);
+
+  var items = document.querySelectorAll('.collapsible');
+  M.Collapsible.init(items);
+
+  var menuElems = document.querySelectorAll('.sidenav');
+  var instances = M.Sidenav.init(menuElems);
+});
+
