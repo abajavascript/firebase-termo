@@ -35,17 +35,18 @@ const setupSensors = (data) => {
       li.className = 'sensor-' + sensorId;
       li.innerHTML = `
           <div class="collapsible-header grey lighten-4 row" style="display: block; margin-bottom: 0; margin-top: 20px;"> 
-            <div class="col l6 m12 s12">${sensor.roomName}</div>  
+            <div class="col l6 m12 s12">${sensor?.roomName}</div>  
             <div class="col l3 m6 s12">[${sensorId}] </div>
             <div class="col l1 m2 s6 temp-value">[${sensor?.last?.t}] </div>
             <div class="col l2 m4 s6 time-value">[${sensor?.last?.time}] </div>
           </div>
           <div class="collapsible-body white"> 
           <div>
-            <p>Room name : ${sensor.roomName} </p>
-            <p>Sensor name : ${sensor.sensorName} </p>
-            <p>Sensor type : ${sensor.sensorType} </p>
-            <a class="waves-effect waves-light btn-small">Edit</a>
+            <p>Room name : ${sensor?.roomName} </p>
+            <p>Sensor name : ${sensor?.sensorName} </p>
+            <p>Sensor type : ${sensor?.sensorType} </p>
+            <a class="waves-effect waves-light btn-small modal-trigger" data-target="modal-update-sensor">Edit old</a>
+            <a class="waves-effect waves-light btn-small" id="edit-sensor-${sensorId}">Edit</a>
           </div>
             <p>Start time : ${sensor?.start?.time} </p>
             <p>Last time : ${sensor?.last?.time} </p>
@@ -78,6 +79,7 @@ const setupSensors = (data) => {
       });
 
       //chart for today
+      //activate only when expanded collapsible
       function getNowYYYYMMDD(){
         const d = new Date();
         return d.getFullYear() + '/' + ('0' + (d.getMonth()+1)).slice(-2) + '/' + ('0' + (d.getDate())).slice(-2);
@@ -86,6 +88,19 @@ const setupSensors = (data) => {
         console.log(`Received temperatures of #${sensorId} sensor`, snapshot.val());
         setupTemperaturesChart(sensorData, snapshot.val());
       }, err => console.log(err.message));
+
+      const btn = document.querySelector(`#edit-sensor-${sensorId}`);
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const modal = document.querySelector('#modal-update-sensor');
+        updateSensorForm.reset();
+        updateSensorForm.roomName.value = sensor?.roomName || '';
+        updateSensorForm.sensorName.value = sensor?.sensorName ||'';
+        updateSensorForm.sensorType.value = sensor?.sensorType || '';
+        updateSensorForm.querySelectorAll('label').forEach(el => el.classList.add('active'));
+        M.Modal.getInstance(modal).open();
+    
+      });
 
     });
   } else {

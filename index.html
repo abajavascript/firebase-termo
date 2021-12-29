@@ -19,9 +19,9 @@
       </a>
       <a href="#" data-target="mobile-menu" class="sidenav-trigger"><i class="material-icons black-text">menu</i></a>
       <ul id="nav-mobile" class="right hide-on-med-and-down">
-        <li class="logged-in" style="display: none;">
-          <a href="#" class="grey-text modal-trigger" data-target="modal-create">Create Sensor</a>
-        </li>
+        <!-- <li class="logged-in" style="display: none;">
+          <a href="#" class="grey-text modal-trigger" data-target="modal-update-sensor">Update Sensor</a>
+        </li> -->
         <li class="logged-out" style="display: none;">
           <a href="#" class="grey-text modal-trigger" data-target="modal-signup">Sign up</a>
         </li>
@@ -38,9 +38,9 @@
     </div>
   </nav>
   <ul class="sidenav" id="mobile-menu">
-    <li class="logged-in" style="display: none;">
-      <a href="#" class="grey-text modal-trigger" data-target="modal-create">Create Sensor</a>
-    </li>
+    <!-- <li class="logged-in" style="display: none;">
+      <a href="#" class="grey-text modal-trigger" data-target="modal-update-sensor">Create Sensor</a>
+    </li> -->
     <li class="logged-out" style="display: none;">
       <a href="#" class="grey-text modal-trigger" data-target="modal-signup">Sign up</a>
     </li>
@@ -103,20 +103,24 @@
     </div>
   </div>
 
-  <!-- CREATE SENSOR MODAL -->
-  <div id="modal-create" class="modal">
+  <!-- CREATE/EDIT SENSOR MODAL -->
+  <div id="modal-update-sensor" class="modal">
     <div class="modal-content">
-      <h4>Create Sensor</h4><br />
-      <form id="create-form">
+      <h4>Update Sensor</h4><br />
+      <form id="update-sensor-form">
         <div class="input-field">
-          <input type="text" id="title" required>
-          <label for="title">Guide Title</label>
+          <input type="text" id="roomName" required>
+          <label for="title">Room Name</label>
         </div>
         <div class="input-field">
-          <textarea id="content" class="materialize-textarea" required></textarea>
-          <label for="content">Guide Content</label>
+          <input type="text" id="sensorName" required>
+          <label for="title">Sensor Name</label>
         </div>
-        <button class="btn yellow darken-2 z-depth-0">Create</button>
+        <div class="input-field">
+          <input type="text" id="sensorType" required>
+          <label for="title">Sensor Type</label>
+        </div>
+        <button class="btn yellow darken-2 z-depth-0">Save</button>
       </form>
     </div>
   </div>
