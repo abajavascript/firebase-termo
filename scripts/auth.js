@@ -74,20 +74,43 @@ function doLogout(e) {
   auth.signOut();
 };
 
-// create new guide
+// update sensor information
 const updateSensorForm = document.querySelector('#update-sensor-form');
 updateSensorForm.addEventListener('submit', (e) => {
   e.preventDefault();
-  db.collection('guides').add({
-    title: updateSensorForm.title.value,
-    content: updateSensorForm.content.value
+  db.ref('sensors/' + updateSensorForm.sensorId.value).update({
+    roomName: updateSensorForm.roomName.value,
+    sensorName: updateSensorForm.sensorName.value,
+    sensorType: updateSensorForm.sensorType.value
   }).then(() => {
     // close the create modal & reset form
     const modal = document.querySelector('#modal-update-sensor');
     M.Modal.getInstance(modal).close();
     updateSensorForm.reset();
   }).catch(err => {
-    console.log(err.message);
+    alert(err.message);
   });
 });
+
+// delete sensor information
+function deleteSensorWithAllData(sensorId) {
+  if (!sensorId) return false;
+  //this function need to be refarctored to use promise all functionality
+  db.ref('temperatures/' + sensorId).remove().then(() => {
+    // close the create modal & reset form
+    db.ref('sensors/' + sensorId).remove().then(() => {
+      // close the create modal & reset form
+      db.ref('uptime/' + sensorId).remove().then(() => {
+        // close the create modal & reset form
+      }).catch(err => {
+        alert(err.message);
+      });
+    }).catch(err => {
+      alert(err.message);
+    });
+  }).catch(err => {
+    alert(err.message);
+  });
+};
+
 

@@ -45,8 +45,8 @@ const setupSensors = (data) => {
             <p>Room name : ${sensor?.roomName} </p>
             <p>Sensor name : ${sensor?.sensorName} </p>
             <p>Sensor type : ${sensor?.sensorType} </p>
-            <a class="waves-effect waves-light btn-small modal-trigger" data-target="modal-update-sensor">Edit old</a>
             <a class="waves-effect waves-light btn-small" id="edit-sensor-${sensorId}">Edit</a>
+            <a class="waves-effect orange darken-4 btn-small" id="delete-sensor-${sensorId}">Delete</a>
           </div>
             <p>Start time : ${sensor?.start?.time} </p>
             <p>Last time : ${sensor?.last?.time} </p>
@@ -89,17 +89,26 @@ const setupSensors = (data) => {
         setupTemperaturesChart(sensorData, snapshot.val());
       }, err => console.log(err.message));
 
-      const btn = document.querySelector(`#edit-sensor-${sensorId}`);
-      btn.addEventListener('click', (e) => {
+      const btn_edit = document.querySelector(`#edit-sensor-${sensorId}`);
+      btn_edit.addEventListener('click', (e) => {
         e.preventDefault();
         const modal = document.querySelector('#modal-update-sensor');
         updateSensorForm.reset();
+        updateSensorForm.sensorId.value = sensorId;
         updateSensorForm.roomName.value = sensor?.roomName || '';
         updateSensorForm.sensorName.value = sensor?.sensorName ||'';
         updateSensorForm.sensorType.value = sensor?.sensorType || '';
         updateSensorForm.querySelectorAll('label').forEach(el => el.classList.add('active'));
         M.Modal.getInstance(modal).open();
     
+      });
+
+      const btn_delete = document.querySelector(`#delete-sensor-${sensorId}`);
+      btn_delete.addEventListener('click', (e) => {
+        e.preventDefault();
+    
+        if (confirm('Ви впевнені що хочете вилучити сенсор?'))
+          deleteSensorWithAllData(sensorId);
       });
 
     });
@@ -117,7 +126,7 @@ const setupSensors = (data) => {
 
 function setupTemperaturesChart(sensorData, snapshot) {
   let canvasId = "canvas-" + sensorData.sensorId;
-
+  if (!snapshot) return;
   //tranform firebase data to Chart.js format
   const temperatures = flatten(snapshot);
   function flatten(obj) {
