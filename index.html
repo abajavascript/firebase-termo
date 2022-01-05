@@ -113,15 +113,15 @@
         <input type="hidden" id="sensorId">
         <div class="input-field">
           <input type="text" id="roomName" required>
-          <label for="title">Room Name</label>
+          <label for="roomName">Room Name</label>
         </div>
         <div class="input-field">
           <input type="text" id="sensorName" required>
-          <label for="title">Sensor Name</label>
+          <label for="sensorName">Sensor Name</label>
         </div>
         <div class="input-field">
           <input type="text" id="sensorType" required>
-          <label for="title">Sensor Type</label>
+          <label for="sensorType">Sensor Type</label>
         </div>
         <button class="btn yellow darken-2 z-depth-0">Save</button>
       </form>
@@ -129,12 +129,12 @@
   </div>
 
   <!-- CONFIRM DIALOG -->
-  <div id="modal-confirm-delete" class="modal">
+  <div id="modal-confirm-dialog" class="modal">
     <div class="modal-content">
-      <h4>Confirm to delete Sensor</h4><br />
+      <h4>Confirm?</h4><br />
       <div class="modal-footer">
-        <a href="#" class="waves-effect waves-gray btn-flat" onclick="$('#md1').closeModal(); return false;">Cancel</a>
-        <a href="#" class="waves-effect waves-red btn-flat" id="md_Confirm_YesBtn">Yes</a>
+        <a href="#" class="waves-effect waves-red btn" id="modal-confirm-dialog-YesBtn">Yes</a>
+        <a href="#" class="waves-effect waves-gray btn" id="modal-confirm-dialog-CancelBtn">Cancel</a>
       </div>
     </div>
   </div>

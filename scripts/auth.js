@@ -93,24 +93,44 @@ updateSensorForm.addEventListener('submit', (e) => {
 });
 
 // delete sensor information
-function deleteSensorWithAllData(sensorId) {
-  if (!sensorId) return false;
-  //this function need to be refarctored to use promise all functionality
-  db.ref('temperatures/' + sensorId).remove().then(() => {
-    // close the create modal & reset form
-    db.ref('sensors/' + sensorId).remove().then(() => {
-      // close the create modal & reset form
-      db.ref('uptime/' + sensorId).remove().then(() => {
-        // close the create modal & reset form
-      }).catch(err => {
-        alert(err.message);
-      });
+function fbDeleteSensor(sensorId) {
+  return new Promise((resolve, reject) => {
+    if (!sensorId) return reject(`Empty Sensor Identifier`);
+    
+    let delPath = {};
+    // delPath['temperatures/' + sensorId] = null;
+    // delPath['sensors/' + sensorId] = null;
+    delPath['sensorsList/' + sensorId] = null;
+    // delPath['uptime/' + sensorId] = null;
+
+    db.ref().update(delPath).then(() => {
+      resolve("Successfully deleted");
     }).catch(err => {
-      alert(err.message);
+      reject(err.message);
     });
-  }).catch(err => {
-    alert(err.message);
   });
+  
 };
 
+// modal-confirm-dialog
+const modalConfirmDialog = document.querySelector('#modal-confirm-dialog');
+function confirmDialog(message){
+  return new Promise((resolve, reject) => {
+    modalConfirmDialog.querySelector('H4').innerHTML = message;
+    modalConfirmDialog.resolve = resolve;
+    M.Modal.getInstance(modalConfirmDialog).open();
+  });
+}
+
+modalConfirmDialog.querySelector('#modal-confirm-dialog-YesBtn').addEventListener('click', (e) => {
+  e.preventDefault();
+  M.Modal.getInstance(modalConfirmDialog).close();
+  modalConfirmDialog.resolve(true);
+});
+
+modalConfirmDialog.querySelector('#modal-confirm-dialog-CancelBtn').addEventListener('click', (e) => {
+  e.preventDefault();
+  M.Modal.getInstance(modalConfirmDialog).close();
+  modalConfirmDialog.resolve(false);
+});
 

@@ -107,8 +107,17 @@ const setupSensors = (data) => {
       btn_delete.addEventListener('click', (e) => {
         e.preventDefault();
     
-        if (confirm('Ви впевнені що хочете вилучити сенсор?'))
-          deleteSensorWithAllData(sensorId);
+        confirmDialog(`Ви впевнені що хочете вилучити сенсор ${sensorId}?`).then((result) => {
+          if (result) {
+            fbDeleteSensor(sensorId).then(msg => {
+              alert(msg);
+              alert('do something on success, for example delete current <LI> element');
+            }).catch(msg => {
+              alert(msg);
+            });
+          }
+        });
+
       });
 
     });
