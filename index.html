@@ -119,9 +119,17 @@
           <input type="text" id="sensorName" required>
           <label for="sensorName">Sensor Name</label>
         </div>
-        <div class="input-field">
+        <!-- <div class="input-field">
           <input type="text" id="sensorType" required>
           <label for="sensorType">Sensor Type</label>
+        </div> -->
+        <div class="input-field">
+          <label for="sensorType">Sensor type</label>
+          <select id="sensorType">
+            <option value="DS18B20">DS18B20</option>
+            <option value="DHT22">DHT22</option>
+            <option value="Other">Other</option>
+          </select>
         </div>
         <button class="btn yellow darken-2 z-depth-0">Save</button>
       </form>

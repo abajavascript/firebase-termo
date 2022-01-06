@@ -1,14 +1,28 @@
 // listen for auth status changes
+// auth.onAuthStateChanged(user => {
+//   if (user) {
+//     db.ref('sensors').once('value', snapshot => {
+//       setupUI(user);
+//       console.log('Received list of sensors', snapshot.val());
+//       setupSensors(snapshot.val());
+//     }, err => console.log(err.message));
+//   } else {
+//     setupUI();
+//     setupSensors({});
+//   }
+// });
+
 auth.onAuthStateChanged(user => {
   if (user) {
-    db.ref('sensors').once('value', snapshot => {
-      setupUI(user);
+    setupUI(user);
+    db.ref('sensorsList').on('value', snapshot => {
       console.log('Received list of sensors', snapshot.val());
       setupSensors(snapshot.val());
     }, err => console.log(err.message));
   } else {
+    db.ref('sensorsList').off();
     setupUI();
-    setupSensors({});
+    setupSensors(null);
   }
 });
 
@@ -78,7 +92,7 @@ function doLogout(e) {
 const updateSensorForm = document.querySelector('#update-sensor-form');
 updateSensorForm.addEventListener('submit', (e) => {
   e.preventDefault();
-  db.ref('sensors/' + updateSensorForm.sensorId.value).update({
+  db.ref('sensors/' + updateSensorForm.sensorId.value + '/info').update({
     roomName: updateSensorForm.roomName.value,
     sensorName: updateSensorForm.sensorName.value,
     sensorType: updateSensorForm.sensorType.value
