@@ -106,6 +106,22 @@ updateSensorForm.addEventListener('submit', (e) => {
   });
 });
 
+// send refresh command to sensor 
+function fbRefreshSensor(sensorMac) {
+  return new Promise((resolve, reject) => {
+    if (!sensorMac) return reject(`Empty Sensor MAC address`);
+
+    let refreshObj = {};
+    refreshObj[sensorMac] = 'refresh';
+    db.ref('commands').update(refreshObj).then(() => {
+      resolve("Successfully sent refresh command to " + sensorMac);
+    }).catch(err => {
+      reject(err.message);
+    });
+  });
+  
+};
+
 // delete sensor information
 function fbDeleteSensor(sensorId) {
   return new Promise((resolve, reject) => {

@@ -43,10 +43,12 @@ const setupSensors = (data) => {
     Object.keys(data).forEach(sensorId => {
       if (sensorsDataArray.find(sensorData => sensorData.sensorId == sensorId)) return;//skip already added Sensors
       console.log(`Sensor ${sensorId} will be added to DOM`);
-      const li = createSensorLiElement(sensorId);
+      let sensorMac = data[sensorId];
+      const li = createSensorLiElement(sensorId, sensorMac);
       let sensorData = {
         li : li,
         sensorId : sensorId,
+        sensorMac : sensorMac,
         //fbSensorValueListener : 'sensors/' + sensorId + '/last'
         fbSensorValueListener : [
           'sensors/' + sensorId + '/last',
@@ -95,14 +97,16 @@ const setupSensors = (data) => {
 
 };
 
-function createSensorLiElement(sensorId){
+function createSensorLiElement(sensorId, sensorMac){
   const li = document.createElement('li');
   li.dataset.sensorId = sensorId;
   li.className = 'sensor-' + sensorId;
+  li.style.position = "relative";
   li.innerHTML = `
+      <div class="drag-div" style="position: absolute; background: gray; height: 100%; width: 3%; left: -3%; cursor: move" draggable="true" >&nbsp;</div>
       <div class="collapsible-header grey lighten-4 row" style="display: block; margin-bottom: 0; margin-top: 20px;"> 
         <div class="col l6 m12 s12 room-name-value">Незадано</div>  
-        <div class="col l3 m6 s12 ">${sensorId}</div>
+        <div class="col l3 m6 s12 ">${sensorId} <a id="refresh-sensor-${sensorId}"><i class="small material-icons" style="position: relative; top: 3px; font-size: 1.1rem;">refresh</i></a> </div>
         <div class="col l1 m2 s6 last-temp-value"></div>
         <div class="col l2 m4 s6 last-time-value"></div>
       </div>
@@ -111,6 +115,7 @@ function createSensorLiElement(sensorId){
         <p>Room name : <span class="room-name-value">Незадано</span></p>
         <p>Sensor name : <span class="sensor-name-value">Незадано</span></p>
         <p>Sensor type : <span class="sensor-type-value">Незадано</span> </p>
+        <p>Sensor mac : <span class="sensor-mac-value">Незадано</span> </p>
         <a class="waves-effect waves-light btn-small" id="edit-sensor-${sensorId}">Edit</a>
         <a class="waves-effect orange darken-4 btn-small" id="delete-sensor-${sensorId}">Delete</a>
       </div>
@@ -128,6 +133,17 @@ function createSensorLiElement(sensorId){
       </div>
   `;
   sensorList.appendChild(li);
+  li.querySelectorAll(`.sensor-mac-value`).forEach(el => el.innerHTML = sensorMac);
+
+  document.querySelector(`#refresh-sensor-${sensorId}`).addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    fbRefreshSensor(sensorMac).then(msg => {
+      console.log(msg);
+    }).catch(msg => {
+      console.log(msg);
+    });
+});
 
   document.querySelector(`#edit-sensor-${sensorId}`).addEventListener('click', (e) => {
     e.preventDefault();
@@ -146,6 +162,29 @@ function createSensorLiElement(sensorId){
       }
     });
   });
+
+  li.draggable = true;
+  // li.querySelector('.drag-div').addEventListener('dragstart', onSensorLiDragStart);
+  // li.querySelector('.drag-div').addEventListener('dragend', onSensorLiDragEnd);
+  li.addEventListener('dragstart', onSensorLiDragStart);
+  li.addEventListener('dragend', onSensorLiDragEnd);
+  li.addEventListener('dragover', onSensorLiDragOver);
+  function onSensorLiDragStart(e) {
+    console.log('drag start');
+    let draggedElement = this;//.parentNode;
+    draggedElement.style.opacity = '0.4';
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/html', draggedElement.outerHTML);
+  }
+  function onSensorLiDragEnd(e) {
+    console.log('drag end');
+    let draggedElement = this;//.parentNode;
+    draggedElement.style.opacity = '1';
+  }
+  function onSensorLiDragOver(e) {
+    e.preventDefault(); // Necessary. Allows us to drop.
+    e.dataTransfer.dropEffect = 'move';  // See the section on the DataTransfer object.
+  }
 
   return li;
 }
