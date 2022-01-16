@@ -137,9 +137,14 @@ function createSensorLiElement(sensorId, sensorMac) {
   sensorList.appendChild(li);
   li.querySelectorAll(`.sensor-mac-value`).forEach(el => el.innerHTML = sensorMac);
 
-  document.querySelector(`#refresh-sensor-${sensorId}`).addEventListener('click', (e) => {
+  document.querySelector(`#refresh-sensor-${sensorId}`).addEventListener('click', function (e) {
     e.preventDefault();
     e.stopPropagation();
+    let li = this;
+    li.children[0].classList.add('rotate360');
+    setTimeout(() => {
+      li.children[0].classList.remove('rotate360');
+    }, 1000);
     fbRefreshSensor(sensorMac).then(msg => {
       console.log(msg);
     }).catch(msg => {

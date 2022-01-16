@@ -9,3 +9,17 @@ div.row.dragover, div.drag-div.dragover, div.collapsible-header.dragover, div.co
     background: honeydew !important;
 }
 
+.rotate360 {
+  animation-duration: 1s;
+  animation-name: rotate360;
+}
+
+@keyframes rotate360 {
+    from {
+      transform: rotate(0deg); 
+    }
+  
+    to {
+      transform: rotate(360deg);
+    }
+  }
