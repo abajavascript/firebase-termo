@@ -88,6 +88,26 @@ function doLogout(e) {
   auth.signOut();
 };
 
+// save layout
+document.querySelectorAll('.save-layout').forEach(a => a.addEventListener('click', doSaveLayout));
+function doSaveLayout(e) {
+  e.preventDefault();
+
+  confirmDialog(`Поновити порядок сенсорів ?`).then((result) => {
+    if (result) {
+      let ul =  document.querySelector('ul.sensors');
+      let refreshObj = {};
+      for (let i = 0; i < ul.children.length; i++) {
+        refreshObj[ul.children[i].dataset.sensorId + '/position'] = i + 1;
+      };
+      db.ref('sensorsList').update(refreshObj).then(() => {
+        alert("Successfully updated layout");
+      });
+    }
+  });
+
+};
+
 // update sensor information
 const updateSensorForm = document.querySelector('#update-sensor-form');
 updateSensorForm.addEventListener('submit', (e) => {
@@ -128,10 +148,10 @@ function fbDeleteSensor(sensorId) {
     if (!sensorId) return reject(`Empty Sensor Identifier`);
     
     let delPath = {};
-    // delPath['temperatures/' + sensorId] = null;
-    // delPath['sensors/' + sensorId] = null;
+    delPath['temperatures/' + sensorId] = null;
+    delPath['sensors/' + sensorId] = null;
     delPath['sensorsList/' + sensorId] = null;
-    // delPath['uptime/' + sensorId] = null;
+    delPath['uptime/' + sensorId] = null;
 
     db.ref().update(delPath).then(() => {
       resolve("Successfully deleted");

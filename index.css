@@ -1,5 +1,11 @@
-
+/* 
 .single-sensor-chart {
     width: 100%;
     height: 30%;
+} */
+
+div.row.dragover, div.drag-div.dragover, div.collapsible-header.dragover, div.collapsible-body.dragover {
+    border: 2px dotted green;
+    background: honeydew !important;
 }
+
