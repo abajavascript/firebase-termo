@@ -258,7 +258,7 @@ function setupTemperaturesChart(sensorData, snapshot) {
   //tranform firebase data to Chart.js format
   const temperatures = flatten(snapshot);
   function flatten(obj) {
-    var result = [];
+    let result = [];
     traverseAndFlatten(obj, result);
     return result;
 
@@ -266,14 +266,14 @@ function setupTemperaturesChart(sensorData, snapshot) {
       Object.keys(currentNode).sort().forEach(key => {
         //for (var key in currentNode) {
         if (currentNode.hasOwnProperty(key)) {
-          var newKey;
+          let newKey;
           if (flattenedKey === undefined) {
             newKey = key;
           } else {
             newKey = flattenedKey + ':' + key;
           }
 
-          var value = currentNode[key];
+          let value = currentNode[key];
           if (typeof value === "object" && (!value.t)) {
             traverseAndFlatten(value, target, newKey);
           } else {
@@ -322,17 +322,17 @@ function setupTemperaturesChart(sensorData, snapshot) {
 // setup materialize components
 document.addEventListener('DOMContentLoaded', function () {
 
-  var modals = document.querySelectorAll('.modal');
+  let modals = document.querySelectorAll('.modal');
   M.Modal.init(modals);
 
-  var items = document.querySelectorAll('.collapsible');
+  let items = document.querySelectorAll('.collapsible');
   M.Collapsible.init(items);
 
-  var menuElems = document.querySelectorAll('.sidenav');
-  var instances = M.Sidenav.init(menuElems);
+  let menuElems = document.querySelectorAll('.sidenav');
+  let instances = M.Sidenav.init(menuElems);
 
-  var selectElems = document.querySelectorAll('select');
-  var selectInstances = M.FormSelect.init(selectElems);
+  let selectElems = document.querySelectorAll('select');
+  let selectInstances = M.FormSelect.init(selectElems);
 
 });
 
