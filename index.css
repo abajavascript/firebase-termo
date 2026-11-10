@@ -72,6 +72,44 @@
   padding: 0 16px 16px;
 }
 
+.sensor-fields p {
+  margin: 0.2rem 0;
+  line-height: 1.35;
+}
+
+.modal.modal-sensor {
+  width: 26rem;
+  max-width: 94%;
+}
+
+.sensor-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.sensor-modal-head h4 {
+  margin: 0;
+}
+
+.sensor-modal-close {
+  border: 0;
+  background: transparent;
+  color: #616161;
+  cursor: pointer;
+  padding: 4px;
+  line-height: 0;
+}
+
+.sensor-form-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
 .tile.open .tile-body {
   display: block;
 }
@@ -120,6 +158,51 @@
 
 .sensor-status.status-red {
   background: #e53935;
+}
+
+.last-temp-value.temp-out-of-range {
+  color: #b71c1c;
+  background: #ffcdd2;
+  border-radius: 4px;
+  padding: 0 4px;
+}
+
+.chart-nav {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.chart-nav .btn-small {
+  display: inline-flex;
+  align-items: center;
+  height: 32px;
+  line-height: 32px;
+  padding: 0 10px;
+}
+
+.chart-nav .btn-small i {
+  font-size: 20px;
+  line-height: 32px;
+}
+
+.chart-nav input.chart-day {
+  width: 11.5rem;
+  height: 32px;
+  margin: 0;
+  padding: 0 8px;
+  border: 1px solid #bdbdbd;
+  border-radius: 2px;
+  background: #fff;
+  box-sizing: border-box;
+}
+
+.chart-wrap {
+  position: relative;
+  width: 100%;
+  height: 240px;
 }
 
 .rotate360 {

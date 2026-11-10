@@ -113,9 +113,14 @@
   </div>
 
   <!-- CREATE/EDIT SENSOR MODAL -->
-  <div id="modal-update-sensor" class="modal">
+  <div id="modal-update-sensor" class="modal modal-sensor">
     <div class="modal-content">
-      <h4>Update Sensor</h4><br />
+      <div class="sensor-modal-head">
+        <h4>Update Sensor</h4>
+        <button type="button" class="modal-close sensor-modal-close" aria-label="Закрити">
+          <i class="material-icons">close</i>
+        </button>
+      </div>
       <form id="update-sensor-form">
         <input type="hidden" id="sensorId">
         <div class="input-field">
@@ -138,7 +143,20 @@
             <option value="Other">Other</option>
           </select>
         </div>
-        <button class="btn yellow darken-2 z-depth-0">Save</button>
+        <div class="row" style="margin-bottom: 0;">
+          <div class="input-field col s6">
+            <input type="number" id="tempMin" name="tempMin" step="0.1">
+            <label for="tempMin">Мін</label>
+          </div>
+          <div class="input-field col s6">
+            <input type="number" id="tempMax" name="tempMax" step="0.1">
+            <label for="tempMax">Макс</label>
+          </div>
+        </div>
+        <div class="sensor-form-actions">
+          <button type="submit" class="btn yellow darken-2 z-depth-0">Save</button>
+          <button type="button" class="btn-flat modal-close">Закрити</button>
+        </div>
       </form>
     </div>
   </div>
@@ -180,7 +198,7 @@
   </script>
   <!-- Compiled and minified JavaScript -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.6.1/dist/chart.umd.min.js"></script>
   <script src="scripts/ui/dialog.js"></script>
   <script src="scripts/ui/drag.js"></script>
   <script src="scripts/ui/card.js"></script>

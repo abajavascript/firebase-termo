@@ -88,6 +88,69 @@ function browserDayPath(date) {
   return d.getFullYear() + '/' + pad(d.getMonth() + 1) + '/' + pad(d.getDate());
 }
 
+function startOfLocalDay(date) {
+  const d = date || new Date();
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+function localDayBounds(date) {
+  const start = startOfLocalDay(date);
+  const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 1);
+  return { start, end };
+}
+
+function formatLocalDateInput(date) {
+  const pad = n => ('0' + n).slice(-2);
+  return date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate());
+}
+
+function formatBrowserClock(date) {
+  const pad = n => ('0' + n).slice(-2);
+  return pad(date.getHours()) + ':' + pad(date.getMinutes());
+}
+
+function kyivDayFolder(date) {
+  const parts = readZonedParts(date, DEVICE_TIME_ZONE);
+  const pad = n => ('0' + n).slice(-2);
+  return {
+    year: parts.year,
+    month: parts.month,
+    day: parts.day,
+    path: parts.year + '/' + pad(parts.month) + '/' + pad(parts.day)
+  };
+}
+
+// A browser-local midnight can fall in the middle of a Lviv day, so one local day
+// may touch two temperatures/{id}/yyyy/mm/dd folders.
+function kyivFoldersForLocalDay(bounds) {
+  const first = kyivDayFolder(bounds.start);
+  const last = kyivDayFolder(new Date(bounds.end.getTime() - 1));
+  return first.path === last.path ? [first] : [first, last];
+}
+
+// Day node is hour -> minute -> { t, h? }. Keys may arrive as an object or as an array.
+function collectTemperaturePoints(node, year, month, day, rangeStart, rangeEnd) {
+  const points = [];
+  function walk(current, parts) {
+    if (!current || typeof current !== 'object') return;
+    const temp = finiteNumber(current.t);
+    if (temp != null && parts.length >= 2) {
+      const hour = +parts[0];
+      const minute = +parts[1];
+      if (hour > 23 || minute > 59 || Number.isNaN(hour) || Number.isNaN(minute)) return;
+      const instant = kyivWallTimeToDate(year, month, day, hour, minute);
+      const ms = instant.getTime();
+      if (ms >= rangeStart && ms < rangeEnd) points.push({ x: ms, y: temp });
+      return;
+    }
+    Object.keys(current).forEach(key => {
+      walk(current[key], parts.concat(key));
+    });
+  }
+  walk(node, []);
+  return points;
+}
+
 function finiteNumber(value) {
   if (typeof value === 'number') return Number.isFinite(value) ? value : null;
   if (typeof value === 'string' && value.trim() !== '') {

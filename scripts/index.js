@@ -1,4 +1,7 @@
 const STATUS_REFRESH_MS = 60 * 1000;
+const CHART_REFRESH_MS = 60 * 1000;
+const DEFAULT_TEMP_MIN = 18;
+const DEFAULT_TEMP_MAX = 20;
 
 const STATUS_LABEL = {
   green: 'Останній запис не старший за 1 годину',
@@ -71,13 +74,13 @@ const setupSensors = (data) => {
         console.log(`Sensor ${sensorData.sensorId} was removed from database`);
         sensorData.li.remove();
         sensorData.fbSensorValueListener.forEach(ref => db.ref(ref).off());
+        destroySensorChart(sensorData);
         return false;
       } else {
         return true;
       }
     })
 
-    // Object.keys(data).sort((a, b) => (''+data[a].roomName).localeCompare(''+data[b].roomName)).forEach(sensorId => {
     Object.keys(data).sort((a, b) => (data[a].position || 1 << 20) - (data[b].position || 1 << 20)).forEach(sensorId => {
       // Object.keys(data).forEach(sensorId => {
       if (sensorsDataArray.find(sensorData => sensorData.sensorId == sensorId)) return;//skip already added Sensors
@@ -107,23 +110,16 @@ const setupSensors = (data) => {
         sensorSummaryDataReceived(sensorId, { start: snapshot.val() }, li);
       });
 
-      //chart for today
-      //activate only when expanded collapsible
-      //THIS SHOULD BE EXECUTED ON EXPAND
-      db.ref(`temperatures/${sensorId}/` + browserDayPath()).once('value', snapshot => {
-        console.log(`Received temperatures of #${sensorId} sensor`, snapshot.val());
-        setupTemperaturesChart(sensorData, snapshot.val());
-      }, err => console.log(err.message));
-      //*********************** */
+      loadChartDay(sensorData, new Date());
 
 
     });
-
 
   } else {
     //detach all firebase listeners
     sensorsDataArray.forEach(sensorData => {
       sensorData.fbSensorValueListener.forEach(ref => db.ref(ref).off());
+      destroySensorChart(sensorData);
     })
     sensorsDataArray.length = 0;
     sensorList.innerHTML = '<h5 class="center-align">Login to view sensors</h5>';
@@ -147,7 +143,7 @@ function createSensorLiElement(sensorId, sensorMac) {
         <i class="material-icons tile-chevron">expand_more</i>
       </div>
       <div class="tile-body">
-      <div>
+      <div class="sensor-fields">
         <p>Room name : <span class="room-name-value">Незадано</span></p>
         <p>Sensor name : <span class="sensor-name-value">Незадано</span></p>
         <p>Sensor type : <span class="sensor-type-value">Незадано</span> </p>
@@ -158,11 +154,13 @@ function createSensorLiElement(sensorId, sensorMac) {
         <p>Start time : <span class="start-time-value"></span> </p>
         <p>Last time : <span class="last-time-value"></span> </p>
         <p>Last temp : <span class="last-temp-value"></span> </p>
-        <div class="row">
-          <a class="waves-effect waves-light btn-small disabled">Today</a>
-          <a class="waves-effect waves-light btn-small">Select day</a>
+        <div class="chart-nav">
+          <a href="#" class="waves-effect waves-light btn-small chart-prev" title="Попередній день" aria-label="Попередній день"><i class="material-icons">chevron_left</i></a>
+          <input type="date" class="chart-day" aria-label="День графіка">
+          <a href="#" class="waves-effect waves-light btn-small chart-next" title="Наступний день" aria-label="Наступний день"><i class="material-icons">chevron_right</i></a>
+          <a href="#" class="waves-effect waves-light btn-small chart-today">Сьогодні</a>
         </div>
-        <div>
+        <div class="chart-wrap">
           <canvas class="single-sensor-chart" id="canvas-${sensorId}"></canvas>
         </div>
       </div>
@@ -203,6 +201,29 @@ function createSensorLiElement(sensorId, sensorMac) {
     });
   });
 
+  li.querySelector('.chart-prev').addEventListener('click', (e) => {
+    e.preventDefault();
+    shiftChartDay(sensorId, -1);
+  });
+  li.querySelector('.chart-next').addEventListener('click', (e) => {
+    e.preventDefault();
+    const entry = sensorEntry(sensorId);
+    if (!entry || isChartToday(entry)) return;
+    shiftChartDay(sensorId, 1);
+  });
+  li.querySelector('.chart-today').addEventListener('click', (e) => {
+    e.preventDefault();
+    const entry = sensorEntry(sensorId);
+    if (entry) loadChartDay(entry, new Date());
+  });
+  li.querySelector('.chart-day').addEventListener('change', (e) => {
+    const value = e.target.value;
+    if (!value) return;
+    const parts = value.split('-').map(Number);
+    const entry = sensorEntry(sensorId);
+    if (entry) loadChartDay(entry, new Date(parts[0], parts[1] - 1, parts[2]));
+  });
+
   return li;
 }
 
@@ -214,21 +235,42 @@ function editSensorInfo(sensorId, li) {
   updateSensorForm.roomName.value = el.roomName || '';
   updateSensorForm.sensorName.value = el.sensorName || '';
   updateSensorForm.sensorType.value = el.sensorType || '';
+  updateSensorForm.tempMin.value = el.tempMin != null ? el.tempMin : (isThermometer(el) ? DEFAULT_TEMP_MIN : '');
+  updateSensorForm.tempMax.value = el.tempMax != null ? el.tempMax : (isThermometer(el) ? DEFAULT_TEMP_MAX : '');
   updateSensorForm.querySelectorAll('label').forEach(el => el.classList.add('active'));
   M.Modal.getInstance(modal).open();
 };
 
 
+function sensorEntry(sensorId) {
+  return sensorsDataArray.find(item => item.sensorId == sensorId);
+}
+
 function sensorSummaryDataReceived(sensorId, sensorData, li) {
   console.log('Received update for sensor ' + sensorId, sensorData);
+  const entry = sensorEntry(sensorId);
   if (sensorData.last) {
     const last = sensorData.last;
     const instant = parseDeviceTime(last.time);
-    const timeText = instant ? formatBrowserDateTime(instant) : (last.time ? String(last.time) : '');
-    li.querySelectorAll('.last-temp-value').forEach(el => { el.textContent = formatSensorReading(last); });
-    li.querySelectorAll('.last-time-value').forEach(el => { el.textContent = timeText; });
-    rememberLastInstant(li, instant, last.time);
-    if (last.h == null && last.time && finiteNumber(last.t) != null) {
+    const prevAt = Number(li.dataset.lastAt || 0);
+    const stale = !!(instant && prevAt && instant.getTime() < prevAt);
+    if (!stale) {
+      const timeText = instant ? formatBrowserDateTime(instant) : (last.time ? String(last.time) : '');
+      li.querySelectorAll('.last-temp-value').forEach(el => { el.textContent = formatSensorReading(last); });
+      li.querySelectorAll('.last-time-value').forEach(el => { el.textContent = timeText; });
+      rememberLastInstant(li, instant, last.time);
+      const temp = finiteNumber(last.t);
+      if (temp != null) li.dataset.lastTemp = String(temp);
+      else delete li.dataset.lastTemp;
+    }
+    if (entry) {
+      entry.lastReading = last;
+      paintTemperatureRange(entry);
+      updateChartLimits(entry);
+      upsertTodayPoint(entry, last);
+    }
+    const temp = finiteNumber(last.t);
+    if (!stale && last.h == null && last.time && temp != null) {
       loadPointHumidity(sensorId, last, li);
     }
   }
@@ -238,15 +280,46 @@ function sensorSummaryDataReceived(sensorId, sensorData, li) {
     const startText = startInstant ? formatBrowserDateTime(startInstant) : (startRaw ? String(startRaw) : '');
     li.querySelectorAll('.start-time-value').forEach(el => { el.textContent = startText; });
   }
-  if (sensorData.info) {
+  if (sensorData.info && entry) {
     li.querySelectorAll(`.room-name-value`).forEach(el => el.innerHTML = sensorData?.info?.roomName);
     li.querySelectorAll(`.sensor-name-value`).forEach(el => el.innerHTML = sensorData?.info?.sensorName);
     li.querySelectorAll(`.sensor-type-value`).forEach(el => el.innerHTML = sensorData?.info?.sensorType);
-    let el = sensorsDataArray.find(sensorData => sensorData.sensorId == sensorId);
-    el.roomName = sensorData?.info?.roomName;
-    el.sensorName = sensorData?.info?.sensorName;
-    el.sensorType = sensorData?.info?.sensorType;
+    entry.roomName = sensorData?.info?.roomName;
+    entry.sensorName = sensorData?.info?.sensorName;
+    entry.sensorType = sensorData?.info?.sensorType;
+    entry.tempMin = finiteNumber(sensorData.info.tempMin);
+    entry.tempMax = finiteNumber(sensorData.info.tempMax);
+    paintTemperatureRange(entry);
+    updateChartLimits(entry);
   }
+}
+
+function isThermometer(entry) {
+  if (!entry) return false;
+  if (finiteNumber(entry.li && entry.li.dataset.lastTemp) != null) return true;
+  return entry.sensorType === 'DS18B20' || entry.sensorType === 'DHT22';
+}
+
+function effectiveTempLimit(entry, stored, fallback) {
+  if (stored != null) return stored;
+  return isThermometer(entry) ? fallback : null;
+}
+
+function paintTemperatureRange(entry) {
+  const t = finiteNumber(entry.li.dataset.lastTemp);
+  const min = effectiveTempLimit(entry, entry.tempMin, DEFAULT_TEMP_MIN);
+  const max = effectiveTempLimit(entry, entry.tempMax, DEFAULT_TEMP_MAX);
+  const below = t != null && min != null && t < min;
+  const above = t != null && max != null && t > max;
+  let title = '';
+  if (below && above) title = 'Поза межами';
+  else if (below) title = 'Нижче мінімуму ' + formatTemperature(min);
+  else if (above) title = 'Вище максимуму ' + formatTemperature(max);
+  entry.li.querySelectorAll('.last-temp-value').forEach(el => {
+    el.classList.toggle('temp-out-of-range', below || above);
+    if (title) el.title = title;
+    else el.removeAttribute('title');
+  });
 }
 
 // DHT22 humidity is stored on temperatures/{id}/yyyy/mm/dd/hh/mm, not on sensors/{id}/last.
@@ -262,71 +335,261 @@ function loadPointHumidity(sensorId, last, li) {
   }, err => console.log(err.message));
 }
 
-function setupTemperaturesChart(sensorData, snapshot) {
-  let canvasId = "canvas-" + sensorData.sensorId;
-  if (!snapshot) return;
-  //tranform firebase data to Chart.js format
-  const temperatures = flatten(snapshot);
-  function flatten(obj) {
-    let result = [];
-    traverseAndFlatten(obj, result);
-    return result;
+function destroySensorChart(entry) {
+  if (!entry.temperaturesChart) return;
+  entry.temperaturesChart.destroy();
+  entry.temperaturesChart = null;
+}
 
-    function traverseAndFlatten(currentNode, target, flattenedKey) {
-      Object.keys(currentNode).sort().forEach(key => {
-        //for (var key in currentNode) {
-        if (currentNode.hasOwnProperty(key)) {
-          let newKey;
-          if (flattenedKey === undefined) {
-            newKey = key;
-          } else {
-            newKey = flattenedKey + ':' + key;
-          }
+function isChartToday(entry) {
+  return entry.chartDay != null && entry.chartDay === startOfLocalDay(new Date()).getTime();
+}
 
-          let value = currentNode[key];
-          if (typeof value === "object" && (!value.t)) {
-            traverseAndFlatten(value, target, newKey);
-          } else {
-            target.push({ x: newKey, y: value.t });
+function syncChartNav(entry) {
+  const day = new Date(entry.chartDay);
+  const input = entry.li.querySelector('.chart-day');
+  if (input) input.value = formatLocalDateInput(day);
+  const next = entry.li.querySelector('.chart-next');
+  if (!next) return;
+  const onToday = isChartToday(entry) || entry.chartDay > startOfLocalDay(new Date()).getTime();
+  next.classList.toggle('disabled', onToday);
+  next.setAttribute('aria-disabled', onToday ? 'true' : 'false');
+}
+
+function shiftChartDay(sensorId, delta) {
+  const entry = sensorEntry(sensorId);
+  if (!entry) return;
+  const current = new Date(entry.chartDay || Date.now());
+  loadChartDay(entry, new Date(current.getFullYear(), current.getMonth(), current.getDate() + delta));
+}
+
+function formatChartTick(value, dayEndMs) {
+  const ms = Number(value);
+  if (ms >= dayEndMs - 1000) return '24:00';
+  return formatBrowserClock(new Date(ms));
+}
+
+// Linear ticks on millisecond values are not clock hours, so place them every four hours.
+function buildDayTicks(scale) {
+  const step = 4 * 60 * 60 * 1000;
+  const start = Math.round(scale.min);
+  const end = Math.round(scale.max);
+  const ticks = [];
+  for (let value = start; value < end - 1000; value += step) ticks.push({ value });
+  ticks.push({ value: end });
+  scale.ticks = ticks;
+}
+
+function limitLineDataset(label, value, bounds, color) {
+  return {
+    label: label + ' ' + formatTemperature(value),
+    data: [
+      { x: bounds.start.getTime(), y: value },
+      { x: bounds.end.getTime(), y: value }
+    ],
+    borderColor: color,
+    borderWidth: 1.5,
+    borderDash: [6, 4],
+    pointRadius: 0,
+    pointHitRadius: 0,
+    tension: 0,
+    fill: false
+  };
+}
+
+function buildTemperatureDatasets(entry, points, bounds) {
+  const datasets = [{
+    label: 'Температура',
+    data: points,
+    normalized: true,
+    borderColor: 'rgb(54, 162, 235)',
+    backgroundColor: 'rgba(54, 162, 235, 0.15)',
+    borderWidth: 2,
+    pointRadius: points.length > 120 ? 0 : 2,
+    pointHoverRadius: 4,
+    tension: 0,
+    fill: false
+  }];
+  const tempMin = effectiveTempLimit(entry, entry.tempMin, DEFAULT_TEMP_MIN);
+  const tempMax = effectiveTempLimit(entry, entry.tempMax, DEFAULT_TEMP_MAX);
+  if (tempMin != null) datasets.push(limitLineDataset('Мін', tempMin, bounds, '#2e7d32'));
+  if (tempMax != null) datasets.push(limitLineDataset('Макс', tempMax, bounds, '#e65100'));
+  return datasets;
+}
+
+function chartOptions(bounds) {
+  const dayEnd = bounds.end.getTime();
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: false,
+    interaction: { mode: 'x', intersect: false },
+    plugins: {
+      legend: { labels: { boxWidth: 12 } },
+      tooltip: {
+        filter: item => item.dataset.label === 'Температура',
+        callbacks: {
+          title: items => formatBrowserDateTime(new Date(items[0].parsed.x)),
+          label: item => Number(item.parsed.y).toFixed(1) + '°C'
+        }
+      }
+    },
+    scales: {
+      x: {
+        type: 'linear',
+        min: bounds.start.getTime(),
+        max: dayEnd,
+        afterBuildTicks: buildDayTicks,
+        ticks: {
+          maxRotation: 0,
+          autoSkip: false,
+          callback: function (value) {
+            return formatChartTick(value, this.max);
           }
         }
-      });
+      },
+      y: {
+        grace: '10%',
+        ticks: {
+          callback: value => Number(value).toFixed(1) + '°'
+        }
+      }
     }
-  }
-  console.log(`Received temperatures of #${sensorData.sensorId} sensor`, temperatures);
-
-  const config = {
-    type: 'line',
-    data: {
-      datasets: [{
-        label: `Sensor #${canvasId}`,
-        backgroundColor: 'rgb(255, 99, 132)',
-        borderColor: 'rgb(54, 162, 235)',
-        borderWidth: 3,
-        data: temperatures,
-      }, {
-        label: "Min",
-        backgroundColor: 'rgb(99, 255, 132)',
-        borderColor: 'rgb(162, 54, 235)',
-        borderWidth: 3,
-        data: [{ x: temperatures[0].x, y: 19 }, { x: temperatures[temperatures.length - 1].x, y: 19 }],
-      }, {
-        label: "Max",
-        backgroundColor: 'rgb(99, 255, 132)',
-        borderColor: 'rgb(162, 54, 235)',
-        borderWidth: 3,
-        data: [{ x: temperatures[0].x, y: 22 }, { x: temperatures[temperatures.length - 1].x, y: 22 }],
-        //fill: true,
-      }],
-    },
-    options: {}
   };
-  const temperaturesChart = new Chart(
-    document.getElementById(canvasId),
-    config
-  );
+}
 
-  sensorData.temperaturesChart = temperaturesChart;
+function showTemperatureChart(entry, points, bounds) {
+  const canvas = entry.li.querySelector('.single-sensor-chart');
+  if (!canvas) return;
+  const datasets = buildTemperatureDatasets(entry, points, bounds);
+  if (!entry.temperaturesChart) {
+    entry.temperaturesChart = new Chart(canvas, {
+      type: 'line',
+      data: { datasets },
+      options: chartOptions(bounds)
+    });
+  } else {
+    const chart = entry.temperaturesChart;
+    chart.data.datasets = datasets;
+    chart.options.scales.x.min = bounds.start.getTime();
+    chart.options.scales.x.max = bounds.end.getTime();
+    chart.update();
+  }
+  if (entry.li.classList.contains('open') && canvas.clientWidth === 0) resizeCardChart(entry.li);
+}
+
+function updateChartLimits(entry) {
+  const chart = entry.temperaturesChart;
+  if (!chart || entry.chartDay == null) return;
+  const bounds = localDayBounds(new Date(entry.chartDay));
+  const points = chart.data.datasets[0].data;
+  chart.data.datasets = buildTemperatureDatasets(entry, points, bounds);
+  chart.update();
+}
+
+function readTemperatureFolders(sensorId, folders, rangeStart, rangeEnd) {
+  return Promise.all(folders.map(folder => new Promise((resolve, reject) => {
+    db.ref('temperatures/' + sensorId + '/' + folder.path).once('value', snapshot => {
+      resolve(collectTemperaturePoints(snapshot.val(), folder.year, folder.month, folder.day, rangeStart, rangeEnd));
+    }, err => reject(err));
+  }))).then(groups => {
+    const merged = new Map();
+    groups.forEach(points => points.forEach(point => merged.set(point.x, point)));
+    return Array.from(merged.values()).sort((a, b) => a.x - b.x);
+  });
+}
+
+function showLatestChartPoint(entry, point) {
+  const prev = Number(entry.li.dataset.lastAt || 0);
+  if (!point || point.x <= prev) return;
+  const instant = new Date(point.x);
+  entry.li.querySelectorAll('.last-temp-value').forEach(el => { el.textContent = formatTemperature(point.y); });
+  entry.li.querySelectorAll('.last-time-value').forEach(el => { el.textContent = formatBrowserDateTime(instant); });
+  rememberLastInstant(entry.li, instant);
+  entry.li.dataset.lastTemp = String(point.y);
+  paintTemperatureRange(entry);
+}
+
+function mergeChartPoints(entry, points) {
+  const chart = entry.temperaturesChart;
+  if (!chart || !isChartToday(entry) || !points.length) return;
+  const data = chart.data.datasets[0].data;
+  let changed = false;
+  points.forEach(point => {
+    const found = data.find(item => item.x === point.x);
+    if (found) {
+      if (found.y !== point.y) {
+        found.y = point.y;
+        changed = true;
+      }
+    } else {
+      data.push(point);
+      changed = true;
+    }
+  });
+  if (changed) {
+    data.sort((a, b) => a.x - b.x);
+    chart.update();
+  }
+  showLatestChartPoint(entry, data[data.length - 1]);
+}
+
+// sensors/{id}/last can lag behind the day folder, so today's open chart is reread once a minute.
+function refreshTodayCharts() {
+  sensorsDataArray.forEach(entry => {
+    if (!entry.temperaturesChart || !isChartToday(entry)) return;
+    const token = entry.chartRequest;
+    const bounds = localDayBounds(new Date(entry.chartDay));
+    readTemperatureFolders(
+      entry.sensorId,
+      kyivFoldersForLocalDay(bounds),
+      bounds.start.getTime(),
+      bounds.end.getTime()
+    ).then(points => {
+      if (entry.chartRequest !== token || !isChartToday(entry)) return;
+      mergeChartPoints(entry, points);
+    }).catch(err => console.log(err.message));
+    db.ref('sensors/' + entry.sensorId + '/last').once('value', snapshot => {
+      const last = snapshot.val();
+      if (last) sensorSummaryDataReceived(entry.sensorId, { last }, entry.li);
+    });
+  });
+}
+
+function upsertTodayPoint(entry, last) {
+  const chart = entry.temperaturesChart;
+  if (!chart || !isChartToday(entry)) return;
+  const instant = parseDeviceTime(last && last.time);
+  const y = finiteNumber(last && last.t);
+  if (!instant || y == null) return;
+  const bounds = localDayBounds(new Date(entry.chartDay));
+  const x = instant.getTime();
+  if (x < bounds.start.getTime() || x >= bounds.end.getTime()) return;
+  const data = chart.data.datasets[0].data;
+  const found = data.find(point => point.x === x);
+  if (found) {
+    if (found.y === y) return;
+    found.y = y;
+  } else {
+    data.push({ x, y });
+    data.sort((a, b) => a.x - b.x);
+  }
+  chart.update();
+}
+
+// One-shot read of the selected browser-local day. While that day is today,
+// later readings are appended from sensors/{id}/last.
+function loadChartDay(entry, dayDate) {
+  const bounds = localDayBounds(dayDate);
+  const requestId = (entry.chartRequest || 0) + 1;
+  entry.chartRequest = requestId;
+  entry.chartDay = bounds.start.getTime();
+  syncChartNav(entry);
+  readTemperatureFolders(entry.sensorId, kyivFoldersForLocalDay(bounds), bounds.start.getTime(), bounds.end.getTime()).then(points => {
+    if (entry.chartRequest !== requestId) return;
+    showTemperatureChart(entry, points, bounds);
+    if (entry.lastReading) upsertTodayPoint(entry, entry.lastReading);
+  }).catch(err => console.log(err.message));
 }
 
 // setup materialize components
@@ -344,4 +607,8 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 setInterval(refreshSensorStatuses, STATUS_REFRESH_MS);
+setInterval(refreshTodayCharts, CHART_REFRESH_MS);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') refreshTodayCharts();
+});
 
