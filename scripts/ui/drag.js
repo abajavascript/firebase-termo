@@ -19,6 +19,9 @@ function initDragSort(list, handleSelector) {
       const from = items.indexOf(dragged);
       const to = items.indexOf(over);
       list.insertBefore(dragged, from > to ? over : over.nextSibling);
+      if (typeof writeSensorOrder === 'function') {
+        writeSensorOrder().catch(err => console.log(err.message));
+      }
     }
     dragged.classList.remove('dragging');
     clearOver();

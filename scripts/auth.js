@@ -88,6 +88,25 @@ function doLogout(e) {
   auth.signOut();
 };
 
+// Current card order becomes sensorsList/{id}/position. A bare MAC string cannot
+// take a child, so that entry is rewritten as { mac, position }.
+function writeSensorOrder() {
+  const ul = document.querySelector('ul.sensors');
+  if (!ul) return Promise.resolve();
+  return db.ref('sensorsList').once('value').then(snapshot => {
+    const list = snapshot.val() || {};
+    const refreshObj = {};
+    const items = ul.querySelectorAll(':scope > li[data-sensor-id]');
+    for (let i = 0; i < items.length; i++) {
+      const id = items[i].dataset.sensorId;
+      if (typeof list[id] === 'string') refreshObj[id] = { mac: list[id], position: i + 1 };
+      else if (list[id]) refreshObj[id + '/position'] = i + 1;
+    }
+    if (!Object.keys(refreshObj).length) return;
+    return db.ref('sensorsList').update(refreshObj);
+  });
+}
+
 // save layout
 document.querySelectorAll('.save-layout').forEach(a => a.addEventListener('click', doSaveLayout));
 function doSaveLayout(e) {
@@ -95,18 +114,7 @@ function doSaveLayout(e) {
 
   confirmDialog(`Поновити порядок сенсорів ?`).then((result) => {
     if (result) {
-      let ul =  document.querySelector('ul.sensors');
-      db.ref('sensorsList').once('value').then(snapshot => {
-        const list = snapshot.val() || {};
-        let refreshObj = {};
-        for (let i = 0; i < ul.children.length; i++) {
-          const id = ul.children[i].dataset.sensorId;
-          // a string entry (bare MAC) cannot get a child, so turn it into { mac, position }
-          if (typeof list[id] === 'string') refreshObj[id] = { mac: list[id], position: i + 1 };
-          else if (list[id]) refreshObj[id + '/position'] = i + 1;
-        };
-        return db.ref('sensorsList').update(refreshObj);
-      }).then(() => {
+      writeSensorOrder().then(() => {
         alert("Successfully updated layout");
       }).catch(err => alert(err.message));
     }
@@ -114,14 +122,30 @@ function doSaveLayout(e) {
 
 };
 
+// Empty limit clears the Firebase key. undefined means the field is not a number.
+function readLimitField(input) {
+  const raw = input.value.trim();
+  if (raw === '') return null;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : undefined;
+}
+
 // update sensor information
 const updateSensorForm = document.querySelector('#update-sensor-form');
 updateSensorForm.addEventListener('submit', (e) => {
   e.preventDefault();
+  const tempMin = readLimitField(updateSensorForm.tempMin);
+  const tempMax = readLimitField(updateSensorForm.tempMax);
+  if (tempMin === undefined || tempMax === undefined) {
+    alert('Мін і Макс мають бути числами або порожніми');
+    return;
+  }
   db.ref('sensors/' + updateSensorForm.sensorId.value + '/info').update({
     roomName: updateSensorForm.roomName.value,
     sensorName: updateSensorForm.sensorName.value,
-    sensorType: updateSensorForm.sensorType.value
+    sensorType: updateSensorForm.sensorType.value,
+    tempMin: tempMin,
+    tempMax: tempMax
   }).then(() => {
     // close the create modal & reset form
     const modal = document.querySelector('#modal-update-sensor');
@@ -132,21 +156,28 @@ updateSensorForm.addEventListener('submit', (e) => {
   });
 });
 
-// send refresh command to sensor 
-function fbRefreshSensor(sensorMac) {
+// Commands are stored at commands/{mac}. mac keeps its colons.
+function fbSendCommand(sensorMac, command) {
   return new Promise((resolve, reject) => {
-    if (!sensorMac) return reject(`Empty Sensor MAC address`);
-
-    let refreshObj = {};
-    refreshObj[sensorMac] = 'refresh';
-    db.ref('commands').update(refreshObj).then(() => {
-      resolve("Successfully sent refresh command to " + sensorMac);
+    if (!sensorMac) return reject(new Error('Empty Sensor MAC address'));
+    const update = {};
+    update[sensorMac] = command;
+    db.ref('commands').update(update).then(() => {
+      resolve('Successfully sent ' + command + ' to ' + sensorMac);
     }).catch(err => {
-      reject(err.message);
+      reject(err);
     });
   });
-  
-};
+}
+
+function fbRefreshSensor(sensorMac) {
+  return fbSendCommand(sensorMac, 'refresh');
+}
+
+function fbSaveSchedules(sensorId, schedules) {
+  if (!sensorId) return Promise.reject(new Error('Empty Sensor Identifier'));
+  return db.ref('sensors/' + sensorId + '/schedules').set(schedules);
+}
 
 // delete sensor information
 function fbDeleteSensor(sensorId) {
