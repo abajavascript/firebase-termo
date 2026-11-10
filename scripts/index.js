@@ -1,3 +1,39 @@
+const STATUS_REFRESH_MS = 60 * 1000;
+
+const STATUS_LABEL = {
+  green: 'Останній запис не старший за 1 годину',
+  yellow: 'Останній запис від 1 до 48 годин',
+  red: 'Немає свіжих даних'
+};
+
+function paintSensorStatus(li, instant, now) {
+  const status = sensorStatus(instant, now);
+  const dot = li.querySelector('.sensor-status');
+  if (!dot) return;
+  dot.classList.remove('status-green', 'status-yellow', 'status-red');
+  dot.classList.add('status-' + status);
+  dot.title = STATUS_LABEL[status];
+  dot.setAttribute('aria-label', STATUS_LABEL[status]);
+  li.dataset.status = status;
+}
+
+function rememberLastInstant(li, instant, timeRaw) {
+  if (instant) li.dataset.lastAt = String(instant.getTime());
+  else delete li.dataset.lastAt;
+  if (timeRaw) li.dataset.lastTime = String(timeRaw);
+  else delete li.dataset.lastTime;
+  paintSensorStatus(li, instant);
+}
+
+function refreshSensorStatuses() {
+  if (!sensorList) return;
+  sensorList.querySelectorAll(':scope > li').forEach(li => {
+    const raw = li.dataset.lastAt;
+    const instant = raw ? new Date(Number(raw)) : null;
+    paintSensorStatus(li, Number.isNaN(instant && instant.getTime()) ? null : instant);
+  });
+}
+
 // DOM elements
 const sensorList = document.querySelector('.sensors');
 const loggedOutLinks = document.querySelectorAll('.logged-out');
@@ -74,11 +110,7 @@ const setupSensors = (data) => {
       //chart for today
       //activate only when expanded collapsible
       //THIS SHOULD BE EXECUTED ON EXPAND
-      function getNowYYYYMMDD() {
-        const d = new Date();
-        return d.getFullYear() + '/' + ('0' + (d.getMonth() + 1)).slice(-2) + '/' + ('0' + (d.getDate())).slice(-2);
-      }
-      db.ref(`temperatures/${sensorId}/` + getNowYYYYMMDD()).once('value', snapshot => {
+      db.ref(`temperatures/${sensorId}/` + browserDayPath()).once('value', snapshot => {
         console.log(`Received temperatures of #${sensorId} sensor`, snapshot.val());
         setupTemperaturesChart(sensorData, snapshot.val());
       }, err => console.log(err.message));
@@ -108,7 +140,7 @@ function createSensorLiElement(sensorId, sensorMac) {
   li.innerHTML = `
       <div class="drag-div" style="position: absolute; background: gray; height: 100%; width: 3%; left: -3%; cursor: move" draggable="true" >&nbsp;</div>
       <div class="collapsible-header grey lighten-4 row" style="display: block; margin-bottom: 0; margin-top: 20px;"> 
-        <div class="col l6 m12 s12 room-name-value">Незадано</div>  
+        <div class="col l6 m12 s12"><span class="sensor-status status-red" title="Немає свіжих даних" aria-label="Немає свіжих даних"></span><span class="room-name-value">Незадано</span></div>  
         <div class="col l3 m6 s12 ">${sensorId} <a id="refresh-sensor-${sensorId}"><i class="small material-icons" style="position: relative; top: 3px; font-size: 1.1rem;">refresh</i></a> </div>
         <div class="col l1 m2 s6 last-temp-value"></div>
         <div class="col l2 m4 s6 last-time-value"></div>
@@ -235,11 +267,21 @@ function editSensorInfo(sensorId, li) {
 function sensorSummaryDataReceived(sensorId, sensorData, li) {
   console.log('Received update for sensor ' + sensorId, sensorData);
   if (sensorData.last) {
-    li.querySelectorAll(`.last-temp-value`).forEach(el => el.innerHTML = sensorData?.last?.t);
-    li.querySelectorAll(`.last-time-value`).forEach(el => el.innerHTML = sensorData?.last?.time);
+    const last = sensorData.last;
+    const instant = parseDeviceTime(last.time);
+    const timeText = instant ? formatBrowserDateTime(instant) : (last.time ? String(last.time) : '');
+    li.querySelectorAll('.last-temp-value').forEach(el => { el.textContent = formatSensorReading(last); });
+    li.querySelectorAll('.last-time-value').forEach(el => { el.textContent = timeText; });
+    rememberLastInstant(li, instant, last.time);
+    if (last.h == null && last.time && finiteNumber(last.t) != null) {
+      loadPointHumidity(sensorId, last, li);
+    }
   }
   if (sensorData.start) {
-    li.querySelectorAll(`.start-time-value`).forEach(el => el.innerHTML = sensorData?.start?.time);
+    const startRaw = typeof sensorData.start === 'string' ? sensorData.start : sensorData.start.time;
+    const startInstant = parseDeviceTime(startRaw);
+    const startText = startInstant ? formatBrowserDateTime(startInstant) : (startRaw ? String(startRaw) : '');
+    li.querySelectorAll('.start-time-value').forEach(el => { el.textContent = startText; });
   }
   if (sensorData.info) {
     li.querySelectorAll(`.room-name-value`).forEach(el => el.innerHTML = sensorData?.info?.roomName);
@@ -250,6 +292,19 @@ function sensorSummaryDataReceived(sensorId, sensorData, li) {
     el.sensorName = sensorData?.info?.sensorName;
     el.sensorType = sensorData?.info?.sensorType;
   }
+}
+
+// DHT22 humidity is stored on temperatures/{id}/yyyy/mm/dd/hh/mm, not on sensors/{id}/last.
+function loadPointHumidity(sensorId, last, li) {
+  const timePath = String(last.time);
+  db.ref('temperatures/' + sensorId + '/' + timePath).once('value', snapshot => {
+    if (li.dataset.lastTime !== timePath) return;
+    const point = snapshot.val();
+    if (!point || point.h == null) return;
+    const text = formatSensorReading({ t: last.t, h: point.h });
+    if (!text) return;
+    li.querySelectorAll('.last-temp-value').forEach(el => { el.textContent = text; });
+  }, err => console.log(err.message));
 }
 
 function setupTemperaturesChart(sensorData, snapshot) {
@@ -335,4 +390,6 @@ document.addEventListener('DOMContentLoaded', function () {
   let selectInstances = M.FormSelect.init(selectElems);
 
 });
+
+setInterval(refreshSensorStatuses, STATUS_REFRESH_MS);
 

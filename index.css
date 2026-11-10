@@ -9,6 +9,28 @@ div.row.dragover, div.drag-div.dragover, div.collapsible-header.dragover, div.co
     background: honeydew !important;
 }
 
+.sensor-status {
+  display: inline-block;
+  width: 0.75rem;
+  height: 0.75rem;
+  margin-right: 0.5rem;
+  border-radius: 50%;
+  vertical-align: middle;
+  background: #e53935;
+}
+
+.sensor-status.status-green {
+  background: #43a047;
+}
+
+.sensor-status.status-yellow {
+  background: #f9a825;
+}
+
+.sensor-status.status-red {
+  background: #e53935;
+}
+
 .rotate360 {
   animation-duration: 1s;
   animation-name: rotate360;
