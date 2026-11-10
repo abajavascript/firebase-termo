@@ -1,0 +1,41 @@
+scripts/auth.js
+  s_e4dc219a6d22e6::t_c31d6cee4207e8 99-109,111
+scripts/ui/dialog.js
+  s_e4dc219a6d22e6::t_482cb52e2c775f 1-21
+index.html
+  s_e4dc219a6d22e6::t_8f06c4708d2d03 184-186
+  s_e4dc219a6d22e6::t_e863a5da99d809 159
+scripts/index.js
+  s_e4dc219a6d22e6::t_abfe95b408ea52 141-142
+  s_e4dc219a6d22e6::t_90d213126f57b7 42-43
+  s_e4dc219a6d22e6::t_78da3f7428d5dc 138,140,145-147,149
+  s_e4dc219a6d22e6::t_daed8c011e1fc3 143-144
+scripts/ui/card.js
+  s_e4dc219a6d22e6::t_78da3f7428d5dc 1,4
+  s_e4dc219a6d22e6::t_30ea8ff186d41b 2-3,5-8
+index.css
+  s_e4dc219a6d22e6::t_3c5ec277018c17 86-91,94-100
+  s_e4dc219a6d22e6::t_2250e8266bb071 105
+  s_e4dc219a6d22e6::t_1533d9488ef1c6 15-33
+  s_e4dc219a6d22e6::t_defc5b5183aba3 51-55
+  s_e4dc219a6d22e6::t_bdb488915dcad6 7-14,34-50,56-85,92-93
+scripts/ui/drag.js
+  s_e4dc219a6d22e6::t_db0d9fa5c02d6c 1-2,5-8,10-29,32-34,36-39,41-47,53-61,64-65
+  s_e4dc219a6d22e6::t_87d697676d28ec 3-4,9,30-31,35,40,48-52,62-63,66
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "66769cc060997d36edabe9957140d6246b100c9f",
+  "prompts": {},
+  "sessions": {
+    "s_e4dc219a6d22e6": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "d11984b4-2a11-488a-90e7-5285f2c2c0c9",
+        "model": "auto-smart"
+      },
+      "human_author": "ABA JavaScript <abajavascript@gmail.com>"
+    }
+  }
+}
