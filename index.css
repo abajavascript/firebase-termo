@@ -4,16 +4,107 @@
     height: 30%;
 } */
 
-div.row.dragover, div.drag-div.dragover, div.collapsible-header.dragover, div.collapsible-body.dragover {
-    border: 2px dotted green;
-    background: honeydew !important;
+.tile {
+  margin-bottom: 12px;
+  background: #fff;
+  border-radius: 6px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+}
+
+.tile.dragging {
+  opacity: 0.4;
+}
+
+.tile.dragover,
+.tile.dragover .tile-head {
+  background: honeydew;
+}
+
+.tile.dragover {
+  outline: 2px dotted green;
+}
+
+.drag-ghost {
+  position: fixed;
+  z-index: 1000;
+  margin: 0;
+  pointer-events: none;
+  opacity: 0.9;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.28);
+}
+
+.tile-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: #f5f5f5;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.tile-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.tile-id {
+  white-space: nowrap;
+}
+
+.tile-id .material-icons {
+  font-size: 1.1rem;
+  vertical-align: middle;
+}
+
+.tile-time {
+  color: #757575;
+}
+
+.drag-handle {
+  color: #9e9e9e;
+  cursor: grab;
+  touch-action: none;
+}
+
+.tile-body {
+  display: none;
+  padding: 0 16px 16px;
+}
+
+.tile.open .tile-body {
+  display: block;
+}
+
+.tile.open .tile-chevron {
+  transform: rotate(180deg);
+}
+
+@media (max-width: 600px) {
+  .tile-head {
+    display: grid;
+    grid-template-columns: auto auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      "handle status title chevron"
+      "handle id id chevron"
+      "value value time time";
+    row-gap: 2px;
+  }
+
+  .drag-handle { grid-area: handle; }
+  .tile-head .sensor-status { grid-area: status; }
+  .tile-title { grid-area: title; }
+  .tile-id { grid-area: id; }
+  .tile-value { grid-area: value; }
+  .tile-time { grid-area: time; justify-self: end; }
+  .tile-chevron { grid-area: chevron; }
 }
 
 .sensor-status {
   display: inline-block;
+  flex: none;
   width: 0.75rem;
   height: 0.75rem;
-  margin-right: 0.5rem;
   border-radius: 50%;
   vertical-align: middle;
   background: #e53935;

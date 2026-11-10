@@ -96,13 +96,19 @@ function doSaveLayout(e) {
   confirmDialog(`Поновити порядок сенсорів ?`).then((result) => {
     if (result) {
       let ul =  document.querySelector('ul.sensors');
-      let refreshObj = {};
-      for (let i = 0; i < ul.children.length; i++) {
-        refreshObj[ul.children[i].dataset.sensorId + '/position'] = i + 1;
-      };
-      db.ref('sensorsList').update(refreshObj).then(() => {
+      db.ref('sensorsList').once('value').then(snapshot => {
+        const list = snapshot.val() || {};
+        let refreshObj = {};
+        for (let i = 0; i < ul.children.length; i++) {
+          const id = ul.children[i].dataset.sensorId;
+          // a string entry (bare MAC) cannot get a child, so turn it into { mac, position }
+          if (typeof list[id] === 'string') refreshObj[id] = { mac: list[id], position: i + 1 };
+          else if (list[id]) refreshObj[id + '/position'] = i + 1;
+        };
+        return db.ref('sensorsList').update(refreshObj);
+      }).then(() => {
         alert("Successfully updated layout");
-      });
+      }).catch(err => alert(err.message));
     }
   });
 
@@ -161,26 +167,3 @@ function fbDeleteSensor(sensorId) {
   });
   
 };
-
-// modal-confirm-dialog
-const modalConfirmDialog = document.querySelector('#modal-confirm-dialog');
-function confirmDialog(message){
-  return new Promise((resolve, reject) => {
-    modalConfirmDialog.querySelector('H4').innerHTML = message;
-    modalConfirmDialog.resolve = resolve;
-    M.Modal.getInstance(modalConfirmDialog).open();
-  });
-}
-
-modalConfirmDialog.querySelector('#modal-confirm-dialog-YesBtn').addEventListener('click', (e) => {
-  e.preventDefault();
-  M.Modal.getInstance(modalConfirmDialog).close();
-  modalConfirmDialog.resolve(true);
-});
-
-modalConfirmDialog.querySelector('#modal-confirm-dialog-CancelBtn').addEventListener('click', (e) => {
-  e.preventDefault();
-  M.Modal.getInstance(modalConfirmDialog).close();
-  modalConfirmDialog.resolve(false);
-});
-
