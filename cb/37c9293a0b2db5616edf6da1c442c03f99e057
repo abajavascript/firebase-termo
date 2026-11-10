@@ -1,0 +1,19 @@
+.gitignore
+  s_f7618cf8998b37::t_543b67bbc0e9da 1-2
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "cb37c9293a0b2db5616edf6da1c442c03f99e057",
+  "prompts": {},
+  "sessions": {
+    "s_f7618cf8998b37": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "b0ba6ebd-03ce-4ca3-96fe-70ad2a09d2c3",
+        "model": "auto-smart"
+      },
+      "human_author": "ABA JavaScript <abajavascript@gmail.com>"
+    }
+  }
+}
