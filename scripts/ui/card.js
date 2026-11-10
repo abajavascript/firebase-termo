@@ -2,7 +2,7 @@
 function initCardToggle(list) {
   list.addEventListener('click', e => {
     const head = e.target.closest('.tile-head');
-    if (!head || e.target.closest('a, button, input, select, label, .drag-handle')) return;
+    if (!head || e.target.closest('a, button, input, select, label, .drag-handle, .relay-toggle')) return;
     const tile = head.parentNode;
     tile.classList.toggle('open');
     if (tile.classList.contains('open')) resizeCardChart(tile);

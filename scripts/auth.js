@@ -156,21 +156,28 @@ updateSensorForm.addEventListener('submit', (e) => {
   });
 });
 
-// send refresh command to sensor 
-function fbRefreshSensor(sensorMac) {
+// Commands are stored at commands/{mac}. mac keeps its colons.
+function fbSendCommand(sensorMac, command) {
   return new Promise((resolve, reject) => {
-    if (!sensorMac) return reject(`Empty Sensor MAC address`);
-
-    let refreshObj = {};
-    refreshObj[sensorMac] = 'refresh';
-    db.ref('commands').update(refreshObj).then(() => {
-      resolve("Successfully sent refresh command to " + sensorMac);
+    if (!sensorMac) return reject(new Error('Empty Sensor MAC address'));
+    const update = {};
+    update[sensorMac] = command;
+    db.ref('commands').update(update).then(() => {
+      resolve('Successfully sent ' + command + ' to ' + sensorMac);
     }).catch(err => {
-      reject(err.message);
+      reject(err);
     });
   });
-  
-};
+}
+
+function fbRefreshSensor(sensorMac) {
+  return fbSendCommand(sensorMac, 'refresh');
+}
+
+function fbSaveSchedules(sensorId, schedules) {
+  if (!sensorId) return Promise.reject(new Error('Empty Sensor Identifier'));
+  return db.ref('sensors/' + sensorId + '/schedules').set(schedules);
+}
 
 // delete sensor information
 function fbDeleteSensor(sensorId) {

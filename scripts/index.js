@@ -44,6 +44,7 @@ const loggedInLinks = document.querySelectorAll('.logged-in');
 const accountDetails = document.querySelector('.account-details');
 initDragSort(sensorList, '.drag-handle');
 initCardToggle(sensorList);
+initLightControls(sensorList);
 
 const setupUI = (user) => {
   if (user) {
@@ -73,6 +74,7 @@ const setupSensors = (data) => {
       if (!data[sensorData.sensorId]) {
         console.log(`Sensor ${sensorData.sensorId} was removed from database`);
         sensorData.li.remove();
+        clearLightRuntime(sensorData);
         sensorData.fbSensorValueListener.forEach(ref => db.ref(ref).off());
         destroySensorChart(sensorData);
         return false;
@@ -85,7 +87,7 @@ const setupSensors = (data) => {
       // Object.keys(data).forEach(sensorId => {
       if (sensorsDataArray.find(sensorData => sensorData.sensorId == sensorId)) return;//skip already added Sensors
       console.log(`Sensor ${sensorId} will be added to DOM`);
-      let sensorMac = data[sensorId].mac || data[sensorId];//temporary patch to be compatible with other version
+      const sensorMac = commandKey(sensorId, listEntryMac(data[sensorId]));
       const li = createSensorLiElement(sensorId, sensorMac);
       let sensorData = {
         li: li,
@@ -110,7 +112,8 @@ const setupSensors = (data) => {
         sensorSummaryDataReceived(sensorId, { start: snapshot.val() }, li);
       });
 
-      loadChartDay(sensorData, new Date());
+      if (listEntryIsLight(data[sensorId])) ensureLightCard(sensorData);
+      else loadChartDay(sensorData, new Date());
 
 
     });
@@ -118,6 +121,7 @@ const setupSensors = (data) => {
   } else {
     //detach all firebase listeners
     sensorsDataArray.forEach(sensorData => {
+      clearLightRuntime(sensorData);
       sensorData.fbSensorValueListener.forEach(ref => db.ref(ref).off());
       destroySensorChart(sensorData);
     })
@@ -138,7 +142,11 @@ function createSensorLiElement(sensorId, sensorMac) {
         <span class="sensor-status status-red" title="Немає свіжих даних" aria-label="Немає свіжих даних"></span>
         <span class="tile-title"><span class="room-name-value">Незадано</span></span>
         <span class="tile-id">${sensorId} <a href="#" id="refresh-sensor-${sensorId}"><i class="material-icons">refresh</i></a></span>
-        <b class="tile-value last-temp-value"></b>
+        <span class="tile-value">
+          <b class="last-temp-value"></b>
+          <span class="relay-unknown" hidden>Немає стану реле</span>
+          <span class="relay-toggles"></span>
+        </span>
         <span class="tile-time last-time-value"></span>
         <i class="material-icons tile-chevron">expand_more</i>
       </div>
@@ -153,7 +161,7 @@ function createSensorLiElement(sensorId, sensorMac) {
       </div>
         <p>Start time : <span class="start-time-value"></span> </p>
         <p>Last time : <span class="last-time-value"></span> </p>
-        <p>Last temp : <span class="last-temp-value"></span> </p>
+        <p class="temp-row">Last temp : <span class="last-temp-value"></span> </p>
         <div class="chart-nav">
           <a href="#" class="waves-effect waves-light btn-small chart-prev" title="Попередній день" aria-label="Попередній день"><i class="material-icons">chevron_left</i></a>
           <input type="date" class="chart-day" aria-label="День графіка">
@@ -162,6 +170,16 @@ function createSensorLiElement(sensorId, sensorMac) {
         </div>
         <div class="chart-wrap">
           <canvas class="single-sensor-chart" id="canvas-${sensorId}"></canvas>
+        </div>
+        <div class="light-panel">
+          <p class="light-heading">Розклад</p>
+          <p class="light-hint">Дія зліва направо — реле 0…n: 0 вимкнути, 1 увімкнути, ? не чіпати, ! інвертувати.</p>
+          <div class="schedule-list"></div>
+          <p class="schedule-empty">Розкладів ще немає.</p>
+          <div class="schedule-actions">
+            <button type="button" class="btn-small waves-effect waves-light schedule-add">Додати</button>
+            <button type="button" class="btn-small waves-effect waves-light schedule-save">Зберегти розклад</button>
+          </div>
         </div>
       </div>
   `;
@@ -254,23 +272,31 @@ function sensorSummaryDataReceived(sensorId, sensorData, li) {
     const instant = parseDeviceTime(last.time);
     const prevAt = Number(li.dataset.lastAt || 0);
     const stale = !!(instant && prevAt && instant.getTime() < prevAt);
+    const relay = normalizeRelayString(last.r);
+    const lightReading = relay != null && finiteNumber(last.t) == null;
     if (!stale) {
       const timeText = instant ? formatBrowserDateTime(instant) : (last.time ? String(last.time) : '');
-      li.querySelectorAll('.last-temp-value').forEach(el => { el.textContent = formatSensorReading(last); });
+      if (!lightReading) {
+        li.querySelectorAll('.last-temp-value').forEach(el => { el.textContent = formatSensorReading(last); });
+      }
       li.querySelectorAll('.last-time-value').forEach(el => { el.textContent = timeText; });
       rememberLastInstant(li, instant, last.time);
       const temp = finiteNumber(last.t);
-      if (temp != null) li.dataset.lastTemp = String(temp);
+      if (!lightReading && temp != null) li.dataset.lastTemp = String(temp);
       else delete li.dataset.lastTemp;
     }
     if (entry) {
       entry.lastReading = last;
-      paintTemperatureRange(entry);
-      updateChartLimits(entry);
-      upsertTodayPoint(entry, last);
+      if (lightReading) {
+        if (!stale) applyRelayReading(entry, relay);
+      } else {
+        paintTemperatureRange(entry);
+        updateChartLimits(entry);
+        upsertTodayPoint(entry, last);
+      }
     }
     const temp = finiteNumber(last.t);
-    if (!stale && last.h == null && last.time && temp != null) {
+    if (!lightReading && !stale && last.h == null && last.time && temp != null) {
       loadPointHumidity(sensorId, last, li);
     }
   }
@@ -295,7 +321,7 @@ function sensorSummaryDataReceived(sensorId, sensorData, li) {
 }
 
 function isThermometer(entry) {
-  if (!entry) return false;
+  if (!entry || entry.isLight) return false;
   if (finiteNumber(entry.li && entry.li.dataset.lastTemp) != null) return true;
   return entry.sensorType === 'DS18B20' || entry.sensorType === 'DHT22';
 }
@@ -459,6 +485,7 @@ function chartOptions(bounds) {
 }
 
 function showTemperatureChart(entry, points, bounds) {
+  if (entry.isLight) return;
   const canvas = entry.li.querySelector('.single-sensor-chart');
   if (!canvas) return;
   const datasets = buildTemperatureDatasets(entry, points, bounds);
@@ -537,7 +564,7 @@ function mergeChartPoints(entry, points) {
 // sensors/{id}/last can lag behind the day folder, so today's open chart is reread once a minute.
 function refreshTodayCharts() {
   sensorsDataArray.forEach(entry => {
-    if (!entry.temperaturesChart || !isChartToday(entry)) return;
+    if (entry.isLight || !entry.temperaturesChart || !isChartToday(entry)) return;
     const token = entry.chartRequest;
     const bounds = localDayBounds(new Date(entry.chartDay));
     readTemperatureFolders(
@@ -586,7 +613,7 @@ function loadChartDay(entry, dayDate) {
   entry.chartDay = bounds.start.getTime();
   syncChartNav(entry);
   readTemperatureFolders(entry.sensorId, kyivFoldersForLocalDay(bounds), bounds.start.getTime(), bounds.end.getTime()).then(points => {
-    if (entry.chartRequest !== requestId) return;
+    if (entry.chartRequest !== requestId || entry.isLight) return;
     showTemperatureChart(entry, points, bounds);
     if (entry.lastReading) upsertTodayPoint(entry, entry.lastReading);
   }).catch(err => console.log(err.message));
