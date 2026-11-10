@@ -1,0 +1,48 @@
+scripts/ui/drag.js
+  s_721fb7ef763b46::t_8dfb3322bad4f4 105
+  s_721fb7ef763b46::t_6ab050c0beb18a 88
+  s_721fb7ef763b46::t_4e4b2134e78751 149-151
+  s_721fb7ef763b46::t_81b048a3909e4b 127-134
+  s_721fb7ef763b46::t_85bf8bfdda3b10 3-6,8-9,15-17,21-22,29-54,56-82,87,89-104,106-126,138,143,147-148,152,156,163-167
+  s_721fb7ef763b46::t_86049578d1b315 18-20
+README.md
+  s_721fb7ef763b46::t_b73113812e70b0 3-10
+scripts/index.js
+  s_721fb7ef763b46::t_06751459b396ef 174-189
+scripts/light.js
+  s_721fb7ef763b46::t_faf0cbb28eefe4 765-770
+  s_721fb7ef763b46::t_a72abc9b931a22 790-799,808,813
+  s_721fb7ef763b46::t_f44121b676867c 469-484
+  s_721fb7ef763b46::t_1f9b31f3b75865 907-908
+  s_721fb7ef763b46::t_af5e49976dad2b 535-614,616-622,624-764,771-789,800-807,809-812,814-906,909-914
+  s_721fb7ef763b46::t_11a54ac031d445 623
+  s_721fb7ef763b46::t_495b21bd59823e 615
+  s_721fb7ef763b46::t_164510211a99bc 169-172
+  s_721fb7ef763b46::t_fc89e7a6bffa70 212
+  s_721fb7ef763b46::t_d037e293426965 198-202
+index.css
+  s_721fb7ef763b46::t_f0892db3298b40 16-21
+  s_721fb7ef763b46::t_a98c027309bc08 192-193,201-202,210-211
+  s_721fb7ef763b46::t_ddd9c626d3d20b 530-688
+  s_721fb7ef763b46::t_db8d0a600c8a2a 148-154
+  s_721fb7ef763b46::t_39ae3a1ce39cce 71-77,81-83
+scripts/time.js
+  s_721fb7ef763b46::t_e0bc6348a213fd 139-170,172
+  s_721fb7ef763b46::t_7fee39929e3c5e 112-127
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4a0360832bba9a413e6c94db0cdd218f10c6d2de",
+  "prompts": {},
+  "sessions": {
+    "s_721fb7ef763b46": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "60404212-65a2-4012-843b-f43cccb09239",
+        "model": "auto-smart"
+      },
+      "human_author": "ABA JavaScript <abajavascript@gmail.com>"
+    }
+  }
+}
