@@ -109,6 +109,22 @@ function formatBrowserClock(date) {
   return pad(date.getHours()) + ':' + pad(date.getMinutes());
 }
 
+function formatBrowserDay(date) {
+  const pad = n => ('0' + n).slice(-2);
+  return date.getFullYear() + '.' + pad(date.getMonth() + 1) + '.' + pad(date.getDate());
+}
+
+function addLocalDays(date, days) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
+}
+
+function addLocalMonths(date, months) {
+  const shifted = new Date(date.getFullYear(), date.getMonth() + months, 1);
+  const last = new Date(shifted.getFullYear(), shifted.getMonth() + 1, 0).getDate();
+  shifted.setDate(Math.min(date.getDate(), last));
+  return shifted;
+}
+
 function kyivDayFolder(date) {
   const parts = readZonedParts(date, DEVICE_TIME_ZONE);
   const pad = n => ('0' + n).slice(-2);
@@ -120,12 +136,40 @@ function kyivDayFolder(date) {
   };
 }
 
-// A browser-local midnight can fall in the middle of a Lviv day, so one local day
-// may touch two temperatures/{id}/yyyy/mm/dd folders.
+function kyivFolderFromParts(year, month, day) {
+  const pad = n => ('0' + n).slice(-2);
+  return {
+    year: year,
+    month: month,
+    day: day,
+    path: year + '/' + pad(month) + '/' + pad(day)
+  };
+}
+
+function previousKyivFolder(folder) {
+  const utc = Date.UTC(folder.year, folder.month - 1, folder.day) - 24 * 60 * 60 * 1000;
+  const d = new Date(utc);
+  return kyivFolderFromParts(d.getUTCFullYear(), d.getUTCMonth() + 1, d.getUTCDate());
+}
+
+// A browser-local midnight can fall in the middle of a Lviv day, so a local
+// range reads one extra Europe/Kyiv day at the edges.
+function kyivFoldersOverlapping(start, end) {
+  const first = kyivDayFolder(start);
+  const last = kyivDayFolder(new Date(end.getTime() - 1));
+  const folders = [];
+  let utc = Date.UTC(first.year, first.month - 1, first.day);
+  const endUtc = Date.UTC(last.year, last.month - 1, last.day);
+  while (utc <= endUtc) {
+    const d = new Date(utc);
+    folders.push(kyivFolderFromParts(d.getUTCFullYear(), d.getUTCMonth() + 1, d.getUTCDate()));
+    utc += 24 * 60 * 60 * 1000;
+  }
+  return folders;
+}
+
 function kyivFoldersForLocalDay(bounds) {
-  const first = kyivDayFolder(bounds.start);
-  const last = kyivDayFolder(new Date(bounds.end.getTime() - 1));
-  return first.path === last.path ? [first] : [first, last];
+  return kyivFoldersOverlapping(bounds.start, bounds.end);
 }
 
 // Day node is hour -> minute -> { t, h? }. Keys may arrive as an object or as an array.

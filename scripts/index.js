@@ -171,6 +171,22 @@ function createSensorLiElement(sensorId, sensorMac) {
         <div class="chart-wrap">
           <canvas class="single-sensor-chart" id="canvas-${sensorId}"></canvas>
         </div>
+        <div class="relay-history">
+          <div class="relay-history-nav">
+            <a href="#" class="waves-effect waves-light btn-small relay-prev" title="Попередній період" aria-label="Попередній період"><i class="material-icons">chevron_left</i></a>
+            <span class="relay-range"></span>
+            <a href="#" class="waves-effect waves-light btn-small relay-next" title="Наступний період" aria-label="Наступний період"><i class="material-icons">chevron_right</i></a>
+            <div class="relay-span" role="group" aria-label="Період історії">
+              <button type="button" class="relay-span-btn" data-span="day" aria-pressed="true">День</button>
+              <button type="button" class="relay-span-btn" data-span="week" aria-pressed="false">Тиждень</button>
+              <button type="button" class="relay-span-btn" data-span="month" aria-pressed="false">Місяць</button>
+            </div>
+          </div>
+          <p class="relay-history-empty" hidden>Немає змін за цей період</p>
+          <div class="relay-scale-scroll">
+            <div class="relay-scale"></div>
+          </div>
+        </div>
         <div class="light-panel">
           <p class="light-heading">Розклад</p>
           <p class="light-hint">Дія зліва направо — реле 0…n: 0 вимкнути, 1 увімкнути, ? не чіпати, ! інвертувати.</p>

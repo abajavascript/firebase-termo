@@ -166,7 +166,10 @@ function blankSchedule(relayCount) {
 }
 
 function clearLightRuntime(entry) {
-  if (entry) clearTimeout(entry.relayTimer);
+  if (!entry) return;
+  clearTimeout(entry.relayTimer);
+  entry.historyRequest = (entry.historyRequest || 0) + 1;
+  entry.historyReady = false;
 }
 
 function initLightControls(list) {
@@ -192,6 +195,11 @@ function ensureLightCard(entry) {
     }
   }
   paintRelayToggles(entry);
+  if (entry.historySpan == null) {
+    entry.historySpan = 'day';
+    entry.historyCursor = startOfLocalDay(new Date()).getTime();
+    loadRelayHistory(entry);
+  }
 }
 
 function applyRelayReading(entry, relay) {
@@ -201,6 +209,7 @@ function applyRelayReading(entry, relay) {
   entry.relayPending = null;
   entry.relayBits = parseRelayBits(relay);
   paintRelayToggles(entry);
+  noteRelayHistory(entry, relay, parseDeviceTime(entry.lastReading && entry.lastReading.time));
 }
 
 function expectRelayState(entry, state) {
@@ -457,6 +466,22 @@ function saveLightSchedules(sensorId) {
 function onLightClick(e) {
   const li = e.target.closest('.sensors > li');
   if (!li) return;
+  const spanBtn = e.target.closest('.relay-span-btn');
+  if (spanBtn && li.contains(spanBtn)) {
+    e.preventDefault();
+    setRelayHistorySpan(li, spanBtn.dataset.span);
+    return;
+  }
+  if (e.target.closest('.relay-prev')) {
+    e.preventDefault();
+    shiftRelayHistory(li, -1);
+    return;
+  }
+  if (e.target.closest('.relay-next')) {
+    e.preventDefault();
+    shiftRelayHistory(li, 1);
+    return;
+  }
   const bit = e.target.closest('.action-bit');
   if (bit && li.contains(bit)) {
     e.preventDefault();
@@ -506,4 +531,384 @@ function onLightInput(e) {
   if (!panel) return;
   const li = panel.closest('.sensors > li');
   if (li) markScheduleDirty(li);
+}
+
+// Relay changes live at relays/{id}/yyyy/mm/dd/hh/mm as { r }.
+// The rightmost character is relay 0. The scale is HTML, not Chart.js.
+const RELAY_PRIOR_MONTHS = 4;
+
+function relayBit(state, index) {
+  if (!state || index < 0 || index >= state.length) return null;
+  return state.charAt(state.length - 1 - index) === '1';
+}
+
+function relayHistoryBounds(span, cursorMs) {
+  const cursor = new Date(cursorMs);
+  if (span === 'week') {
+    const endDay = startOfLocalDay(cursor);
+    return { start: addLocalDays(endDay, -6), end: addLocalDays(endDay, 1) };
+  }
+  if (span === 'month') {
+    const start = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
+    return { start: start, end: new Date(start.getFullYear(), start.getMonth() + 1, 1) };
+  }
+  const start = startOfLocalDay(cursor);
+  return { start: start, end: addLocalDays(start, 1) };
+}
+
+function shiftHistoryCursor(span, cursorMs, delta) {
+  const cursor = new Date(cursorMs);
+  if (span === 'month') return addLocalMonths(cursor, delta).getTime();
+  const days = span === 'week' ? 7 * delta : delta;
+  return addLocalDays(startOfLocalDay(cursor), days).getTime();
+}
+
+function formatRelayRange(span, bounds) {
+  if (span === 'day') return formatBrowserDay(bounds.start);
+  const last = new Date(bounds.end.getTime() - 1);
+  return formatBrowserDay(bounds.start) + ' – ' + formatBrowserDay(last);
+}
+
+function historyWindowIncludesNow(entry, now) {
+  const at = now == null ? Date.now() : now;
+  return entry.historyStart != null && entry.historyEnd != null && at >= entry.historyStart && at < entry.historyEnd;
+}
+
+function setRelayHistorySpan(li, span) {
+  const entry = sensorEntry(li.dataset.sensorId);
+  if (!entry || (span !== 'day' && span !== 'week' && span !== 'month')) return;
+  if (entry.historySpan === span) return;
+  entry.historySpan = span;
+  loadRelayHistory(entry);
+}
+
+function shiftRelayHistory(li, delta) {
+  const entry = sensorEntry(li.dataset.sensorId);
+  if (!entry) return;
+  if (delta > 0 && entry.historyEnd > Date.now()) return;
+  const span = entry.historySpan || 'day';
+  const cursor = shiftHistoryCursor(span, entry.historyCursor || Date.now(), delta);
+  const bounds = relayHistoryBounds(span, cursor);
+  if (bounds.start.getTime() > Date.now()) return;
+  entry.historyCursor = startOfLocalDay(new Date(cursor)).getTime();
+  loadRelayHistory(entry);
+}
+
+function syncRelayHistoryNav(entry) {
+  const bounds = relayHistoryBounds(entry.historySpan || 'day', entry.historyCursor || Date.now());
+  const label = entry.li.querySelector('.relay-range');
+  if (label) label.textContent = formatRelayRange(entry.historySpan || 'day', bounds);
+  entry.li.querySelectorAll('.relay-span-btn').forEach(btn => {
+    btn.setAttribute('aria-pressed', btn.dataset.span === entry.historySpan ? 'true' : 'false');
+  });
+  const next = entry.li.querySelector('.relay-next');
+  if (next) {
+    const blocked = bounds.end.getTime() > Date.now();
+    next.classList.toggle('disabled', blocked);
+    next.setAttribute('aria-disabled', blocked ? 'true' : 'false');
+  }
+}
+
+function collectRelayPoints(node, year, month, day) {
+  const points = [];
+  function walk(current, parts) {
+    const relay = current && typeof current === 'object' ? normalizeRelayString(current.r) : normalizeRelayString(current);
+    if (relay != null && parts.length >= 2) {
+      const hour = +parts[0];
+      const minute = +parts[1];
+      if (hour > 23 || minute > 59 || Number.isNaN(hour) || Number.isNaN(minute)) return;
+      points.push({ ms: kyivWallTimeToDate(year, month, day, hour, minute).getTime(), r: relay });
+      return;
+    }
+    if (!current || typeof current !== 'object') return;
+    Object.keys(current).forEach(key => {
+      walk(current[key], parts.concat(key));
+    });
+  }
+  walk(node, []);
+  return points;
+}
+
+function readRelayFolders(sensorId, folders) {
+  return Promise.all(folders.map(folder => new Promise((resolve, reject) => {
+    db.ref('relays/' + sensorId + '/' + folder.path).once('value', snapshot => {
+      resolve(collectRelayPoints(snapshot.val(), folder.year, folder.month, folder.day));
+    }, err => reject(err));
+  }))).then(groups => mergeRelayPoints(groups));
+}
+
+function readRelayMonth(sensorId, year, month) {
+  const pad = n => ('0' + n).slice(-2);
+  return new Promise((resolve, reject) => {
+    db.ref('relays/' + sensorId + '/' + year + '/' + pad(month)).once('value', snapshot => {
+      const node = snapshot.val();
+      const points = [];
+      if (node && typeof node === 'object') {
+        Object.keys(node).forEach(dayKey => {
+          const day = +dayKey;
+          if (!day || day > 31) return;
+          collectRelayPoints(node[dayKey], year, month, day).forEach(point => points.push(point));
+        });
+      }
+      resolve(points);
+    }, err => reject(err));
+  });
+}
+
+function mergeRelayPoints(groups) {
+  const merged = new Map();
+  groups.forEach(points => points.forEach(point => merged.set(point.ms, point)));
+  return Array.from(merged.values()).sort((a, b) => a.ms - b.ms);
+}
+
+function latestRelayBefore(points, startMs) {
+  let best = null;
+  points.forEach(point => {
+    if (point.ms < startMs && (!best || point.ms > best.ms)) best = point;
+  });
+  return best;
+}
+
+function priorFromLast(entry, startMs) {
+  const last = entry.lastReading;
+  const relay = normalizeRelayString(last && last.r);
+  const instant = parseDeviceTime(last && last.time);
+  if (!relay || !instant || instant.getTime() >= startMs) return null;
+  return { ms: instant.getTime(), r: relay };
+}
+
+function lookbackRelayPrior(sensorId, startMs) {
+  const startFolder = kyivDayFolder(new Date(startMs));
+  let year = startFolder.year;
+  let month = startFolder.month;
+  let steps = RELAY_PRIOR_MONTHS;
+  function next() {
+    if (steps <= 0) return Promise.resolve(null);
+    steps -= 1;
+    const y = year;
+    const m = month;
+    month -= 1;
+    if (month < 1) {
+      month = 12;
+      year -= 1;
+    }
+    return readRelayMonth(sensorId, y, m).then(points => {
+      const found = latestRelayBefore(points, startMs);
+      if (found) return found;
+      return next();
+    });
+  }
+  return next();
+}
+
+function withLiveRelayPoint(entry, events, startMs, endMs) {
+  if (!historyWindowIncludesNow(entry)) return events;
+  const last = entry.lastReading;
+  const relay = normalizeRelayString(last && last.r);
+  const instant = parseDeviceTime(last && last.time);
+  if (!relay || !instant) return events;
+  const ms = instant.getTime();
+  if (ms < startMs || ms >= endMs) return events;
+  if (events.some(ev => ev.ms === ms)) return events;
+  const copy = events.concat({ ms: ms, r: relay });
+  copy.sort((a, b) => a.ms - b.ms);
+  return copy;
+}
+
+function noteRelayHistory(entry, relay, instant) {
+  if (!entry.historyReady || !instant) return;
+  if (!historyWindowIncludesNow(entry)) return;
+  const ms = instant.getTime();
+  if (ms < entry.historyStart) {
+    if (!entry.historyPrior || ms > entry.historyPrior.ms) {
+      entry.historyPrior = { ms: ms, r: relay };
+      renderRelayHistory(entry);
+    }
+    return;
+  }
+  if (ms >= entry.historyEnd) return;
+  const events = entry.historyEvents || (entry.historyEvents = []);
+  const existing = events.find(ev => ev.ms === ms);
+  if (existing) {
+    if (existing.r === relay) return;
+    existing.r = relay;
+  } else {
+    events.push({ ms: ms, r: relay });
+    events.sort((a, b) => a.ms - b.ms);
+  }
+  renderRelayHistory(entry);
+}
+
+function loadRelayHistory(entry) {
+  if (!entry || !entry.li) return;
+  const span = entry.historySpan || 'day';
+  const bounds = relayHistoryBounds(span, entry.historyCursor || Date.now());
+  const requestId = (entry.historyRequest || 0) + 1;
+  entry.historyRequest = requestId;
+  entry.historyReady = false;
+  entry.historyStart = bounds.start.getTime();
+  entry.historyEnd = bounds.end.getTime();
+  syncRelayHistoryNav(entry);
+  const empty = entry.li.querySelector('.relay-history-empty');
+  if (empty) empty.hidden = true;
+  const scale = entry.li.querySelector('.relay-scale');
+  if (scale) scale.textContent = '';
+  const folders = kyivFoldersOverlapping(bounds.start, bounds.end);
+  const startMs = bounds.start.getTime();
+  const endMs = bounds.end.getTime();
+  readRelayFolders(entry.sensorId, folders).then(points => {
+    if (entry.historyRequest !== requestId || !entry.li.isConnected) return null;
+    const priorEdge = latestRelayBefore(points, startMs);
+    if (priorEdge) return { points: points, prior: priorEdge };
+    const fromLast = priorFromLast(entry, startMs);
+    if (fromLast) return { points: points, prior: fromLast };
+    return lookbackRelayPrior(entry.sensorId, startMs).then(prior => {
+      return { points: points, prior: prior };
+    }).catch(err => {
+      console.log(err && err.message ? err.message : err);
+      return { points: points, prior: null };
+    });
+  }).then(result => {
+    if (!result || entry.historyRequest !== requestId || !entry.li.isConnected) return;
+    const inWindow = result.points.filter(point => point.ms >= startMs && point.ms < endMs);
+    entry.historyPrior = result.prior;
+    entry.historyEvents = withLiveRelayPoint(entry, inWindow, startMs, endMs);
+    entry.historyReady = true;
+    renderRelayHistory(entry);
+  }).catch(err => console.log(err && err.message ? err.message : err));
+}
+
+function relayHistoryCount(events, prior) {
+  let max = 0;
+  if (prior && prior.r) max = prior.r.length;
+  events.forEach(ev => {
+    if (ev.r && ev.r.length > max) max = ev.r.length;
+  });
+  return max;
+}
+
+function pushRelaySegment(segments, from, to, kind) {
+  if (to <= from) return;
+  const prev = segments[segments.length - 1];
+  if (prev && prev.kind === kind && prev.to === from) {
+    prev.to = to;
+    return;
+  }
+  segments.push({ from: from, to: to, kind: kind });
+}
+
+function relayRowModel(events, prior, index, startMs, endMs) {
+  let state = prior ? relayBit(prior.r, index) : null;
+  const segments = [];
+  const dots = [];
+  let cursor = startMs;
+  events.forEach(ev => {
+    const on = relayBit(ev.r, index);
+    if (on == null || ev.ms < cursor) return;
+    if (ev.ms > cursor) pushRelaySegment(segments, cursor, ev.ms, state == null ? 'unknown' : (state ? 'on' : 'off'));
+    if (state !== on) dots.push({ ms: ev.ms, on: on });
+    state = on;
+    cursor = ev.ms;
+  });
+  if (cursor < endMs && state != null) pushRelaySegment(segments, cursor, endMs, state ? 'on' : 'off');
+  return { segments: segments, dots: dots };
+}
+
+function placeRelaySegment(el, startMs, endMs, from, to) {
+  const span = endMs - startMs;
+  el.style.left = ((from - startMs) / span * 100) + '%';
+  el.style.width = ((to - from) / span * 100) + '%';
+}
+
+function relayAxisLabels(span, start, end) {
+  const labels = [];
+  if (span === 'day') {
+    let cursor = new Date(start.getTime());
+    while (cursor.getTime() < end.getTime()) {
+      labels.push({ at: cursor.getTime(), text: ('0' + cursor.getHours()).slice(-2) });
+      cursor = new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate(), cursor.getHours() + 1);
+    }
+    labels.push({ at: end.getTime(), text: '24' });
+    return labels;
+  }
+  let cursor = startOfLocalDay(start);
+  if (cursor.getTime() < start.getTime()) cursor = addLocalDays(cursor, 1);
+  while (cursor.getTime() < end.getTime()) {
+    const next = addLocalDays(cursor, 1);
+    const slotEnd = Math.min(next.getTime(), end.getTime());
+    const text = span === 'week'
+      ? DAY_LABELS[cursor.getDay()] + ' ' + cursor.getDate()
+      : String(cursor.getDate());
+    labels.push({ at: cursor.getTime() + (slotEnd - cursor.getTime()) / 2, text: text });
+    cursor = next;
+  }
+  return labels;
+}
+
+function renderRelayHistory(entry) {
+  const scale = entry.li.querySelector('.relay-scale');
+  const empty = entry.li.querySelector('.relay-history-empty');
+  if (!scale || !empty) return;
+  const events = entry.historyEvents || [];
+  const prior = entry.historyPrior || null;
+  const count = relayHistoryCount(events, prior);
+  const startMs = entry.historyStart;
+  const endMs = entry.historyEnd;
+  scale.classList.remove('span-day', 'span-week', 'span-month');
+  scale.classList.add('span-' + (entry.historySpan || 'day'));
+  scale.textContent = '';
+  if (!count || endMs <= startMs) {
+    empty.hidden = false;
+    return;
+  }
+  empty.hidden = true;
+  for (let index = 0; index < count; index++) {
+    const row = document.createElement('div');
+    row.className = 'relay-row';
+    const label = document.createElement('span');
+    label.className = 'relay-row-label';
+    label.textContent = 'Реле ' + index;
+    const track = document.createElement('div');
+    track.className = 'relay-track';
+    const model = relayRowModel(events, prior, index, startMs, endMs);
+    model.segments.forEach(seg => {
+      if (seg.to <= seg.from) return;
+      const el = document.createElement('span');
+      el.className = 'relay-seg ' + seg.kind;
+      placeRelaySegment(el, startMs, endMs, seg.from, seg.to);
+      track.appendChild(el);
+    });
+    model.dots.forEach(dot => {
+      const el = document.createElement('span');
+      el.className = 'relay-dot ' + (dot.on ? 'on' : 'off');
+      const when = formatBrowserDateTime(new Date(dot.ms));
+      el.title = when;
+      el.setAttribute('aria-label', when);
+      el.style.left = ((dot.ms - startMs) / (endMs - startMs) * 100) + '%';
+      track.appendChild(el);
+    });
+    row.appendChild(label);
+    row.appendChild(track);
+    scale.appendChild(row);
+  }
+  const axisRow = document.createElement('div');
+  axisRow.className = 'relay-row relay-axis-row';
+  const spacer = document.createElement('span');
+  spacer.className = 'relay-row-label';
+  spacer.setAttribute('aria-hidden', 'true');
+  const axis = document.createElement('div');
+  axis.className = 'relay-axis';
+  relayAxisLabels(entry.historySpan || 'day', new Date(startMs), new Date(endMs)).forEach(item => {
+    const el = document.createElement('span');
+    el.className = 'relay-axis-label';
+    el.textContent = item.text;
+    const pct = (item.at - startMs) / (endMs - startMs) * 100;
+    el.style.left = pct + '%';
+    if (pct < 3) el.classList.add('edge-start');
+    else if (pct > 97) el.classList.add('edge-end');
+    axis.appendChild(el);
+  });
+  axisRow.appendChild(spacer);
+  axisRow.appendChild(axis);
+  scale.appendChild(axisRow);
 }
