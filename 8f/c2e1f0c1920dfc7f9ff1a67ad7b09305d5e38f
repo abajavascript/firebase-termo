@@ -1,0 +1,47 @@
+scripts/index.js
+  s_c2334524724478::t_c3f71cc59cf0c8 567
+  s_c2334524724478::t_b6458895fae4bf 275-276,279-281,285,290-296,299
+  s_c2334524724478::t_24a79a1f76d8ec 77
+  s_c2334524724478::t_cf2e6d1601b592 324
+  s_c2334524724478::t_41decb540adbc0 47
+  s_c2334524724478::t_1d4c8d78cb8674 616
+  s_c2334524724478::t_37dd09b94ef695 90
+  s_c2334524724478::t_b699ce9dbd7164 115-116
+  s_c2334524724478::t_50e71d73e5120c 164
+  s_c2334524724478::t_2fc9a8272dcec7 124
+  s_c2334524724478::t_32bfc770becec0 174-183
+  s_c2334524724478::t_1593b2799a0b6b 488
+  s_c2334524724478::t_54d374ad75fc96 145-149
+scripts/auth.js
+  s_c2334524724478::t_53377aa25cb09c 159-160,162-166,168,171-180
+scripts/light.js
+  s_c2334524724478::t_ecb7e79ae3a705 1-310,316,318-509
+  s_c2334524724478::t_68c3807f6080d8 311-315,317
+index.html
+  s_c2334524724478::t_1f2e6b2b2fc249 207
+index.css
+  s_c2334524724478::t_9800dd10cdeade 375
+  s_c2334524724478::t_582baf0b30fcef 208-241,262-275,291-364,384-505,516,522-524
+  s_c2334524724478::t_72e0aed8e1484b 242-261
+  s_c2334524724478::t_b01376e9015649 506-515,517-521
+  s_c2334524724478::t_0980ecb6940d0a 276-290
+  s_c2334524724478::t_2d31cd2fbbeaf7 365-374,376-383
+scripts/ui/card.js
+  s_c2334524724478::t_3466b822df4bc1 5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8fc2e1f0c1920dfc7f9ff1a67ad7b09305d5e38f",
+  "prompts": {},
+  "sessions": {
+    "s_c2334524724478": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "e40d923b-b98e-4ebe-8989-6d1bc79edea2",
+        "model": "auto-smart"
+      },
+      "human_author": "ABA JavaScript <abajavascript@gmail.com>"
+    }
+  }
+}
