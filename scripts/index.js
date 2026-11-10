@@ -39,8 +39,8 @@ const sensorList = document.querySelector('.sensors');
 const loggedOutLinks = document.querySelectorAll('.logged-out');
 const loggedInLinks = document.querySelectorAll('.logged-in');
 const accountDetails = document.querySelector('.account-details');
-let draggedLiElement;
-let lastDragEnter;//global variable to fix drag enter/leave over child
+initDragSort(sensorList, '.drag-handle');
+initCardToggle(sensorList);
 
 const setupUI = (user) => {
   if (user) {
@@ -135,17 +135,18 @@ const setupSensors = (data) => {
 function createSensorLiElement(sensorId, sensorMac) {
   const li = document.createElement('li');
   li.dataset.sensorId = sensorId;
-  li.className = 'sensor-' + sensorId;
-  li.style.position = "relative";
+  li.className = 'tile sensor-' + sensorId;
   li.innerHTML = `
-      <div class="drag-div" style="position: absolute; background: gray; height: 100%; width: 3%; left: -3%; cursor: move" draggable="true" >&nbsp;</div>
-      <div class="collapsible-header grey lighten-4 row" style="display: block; margin-bottom: 0; margin-top: 20px;"> 
-        <div class="col l6 m12 s12"><span class="sensor-status status-red" title="Немає свіжих даних" aria-label="Немає свіжих даних"></span><span class="room-name-value">Незадано</span></div>  
-        <div class="col l3 m6 s12 ">${sensorId} <a id="refresh-sensor-${sensorId}"><i class="small material-icons" style="position: relative; top: 3px; font-size: 1.1rem;">refresh</i></a> </div>
-        <div class="col l1 m2 s6 last-temp-value"></div>
-        <div class="col l2 m4 s6 last-time-value"></div>
+      <div class="tile-head">
+        <i class="material-icons drag-handle">drag_indicator</i>
+        <span class="sensor-status status-red" title="Немає свіжих даних" aria-label="Немає свіжих даних"></span>
+        <span class="tile-title"><span class="room-name-value">Незадано</span></span>
+        <span class="tile-id">${sensorId} <a href="#" id="refresh-sensor-${sensorId}"><i class="material-icons">refresh</i></a></span>
+        <b class="tile-value last-temp-value"></b>
+        <span class="tile-time last-time-value"></span>
+        <i class="material-icons tile-chevron">expand_more</i>
       </div>
-      <div class="collapsible-body white"> 
+      <div class="tile-body">
       <div>
         <p>Room name : <span class="room-name-value">Незадано</span></p>
         <p>Sensor name : <span class="sensor-name-value">Незадано</span></p>
@@ -201,52 +202,6 @@ function createSensorLiElement(sensorId, sensorMac) {
       }
     });
   });
-
-  li.draggable = true;
-  // li.querySelector('.drag-div').addEventListener('dragstart', onSensorLiDragStart);
-  // li.querySelector('.drag-div').addEventListener('dragend', onSensorLiDragEnd);
-  li.addEventListener('dragstart', onSensorLiDragStart);
-  li.addEventListener('dragend', onSensorLiDragEnd);
-  li.addEventListener('dragover', onSensorLiDragOver);
-  li.addEventListener('dragenter', onSensorLiDragEnter);
-  li.addEventListener('dragleave', onSensorLiDragLeave);
-  li.addEventListener('drop', onSensorLiDrop);
-  function onSensorLiDragStart(e) {
-    draggedLiElement = this;//.parentNode;
-    this.style.opacity = '0.4';
-    e.dataTransfer.effectAllowed = 'move';
-    //e.dataTransfer.setData('text/html', draggedElement.outerHTML);
-  }
-  function onSensorLiDragEnd(e) {
-    this.style.opacity = '1';
-    document.querySelectorAll('div.dragover').forEach(item => item.classList.remove("dragover"));
-  }
-  function onSensorLiDragOver(e) {
-    e.preventDefault(); // Necessary. Allows us to drop.
-    e.dataTransfer.dropEffect = 'move';  // See the section on the DataTransfer object.
-  }
-  function onSensorLiDrop(e) {
-    e.stopPropagation();
-    e.preventDefault();
-    if (draggedLiElement !== this) {
-      if (Array.prototype.indexOf.call(draggedLiElement.parentNode.children, draggedLiElement) > Array.prototype.indexOf.call(this.parentNode.children, this)){
-        document.querySelector('ul.sensors').insertBefore(draggedLiElement, this);
-      } else {
-        document.querySelector('ul.sensors').insertBefore(draggedLiElement, this.nextSibling);
-      }
-    }
-  }
-  // let lastDragEnter;//global variable to fix drag enter/leave over child
-  function onSensorLiDragEnter(e) {
-    lastDragEnter = e.target;
-    this.querySelectorAll(':scope > div').forEach(item => item.classList.add("dragover"));
-  }
-  function onSensorLiDragLeave(e) {
-    if (lastDragEnter === e.target)
-      this.querySelectorAll(':scope > div').forEach(item => item.classList.remove("dragover"));
-  }
-  
-
 
   return li;
 }
@@ -379,9 +334,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
   let modals = document.querySelectorAll('.modal');
   M.Modal.init(modals);
-
-  let items = document.querySelectorAll('.collapsible');
-  M.Collapsible.init(items);
 
   let menuElems = document.querySelectorAll('.sidenav');
   let instances = M.Sidenav.init(menuElems);
